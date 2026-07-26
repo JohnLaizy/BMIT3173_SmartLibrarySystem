@@ -46,7 +46,7 @@ php -m | findstr /I "curl fileinfo mbstring openssl pdo_sqlite sqlite3 zip"
 ## 3. Install Composer
 
 Install Composer using the Windows installer.
-[text](https://getcomposer.org/Composer-Setup.exe)
+[link to composer](https://getcomposer.org/Composer-Setup.exe)
 
 When asked for the PHP executable, select:
 
@@ -64,7 +64,7 @@ where.exe composer
 ## 4. Install Node.js
 
 Install the Windows x64 version of:
-[text](https://nodejs.org/dist/v24.18.0/node-v24.18.0-x64.msi)
+[link to node](https://nodejs.org/dist/v24.18.0/node-v24.18.0-x64.msi)
 
 ```text
 Node.js 24 LTS
