@@ -1,0 +1,52 @@
+# Environment files and secrets
+/.env
+/.env.*
+!/.env.example
+
+# PHP dependencies
+/vendor/
+
+# Node.js dependencies
+/node_modules/
+
+# Vite generated files
+/public/build/
+/public/hot
+/public/fonts-manifest.dev.json
+
+# Laravel generated files
+/public/storage
+/storage/*.key
+/storage/pail
+
+# Local SQLite database
+/database/*.sqlite
+/database/*.sqlite-*
+
+# Logs and test caches
+*.log
+.phpunit.result.cache
+/.phpunit.cache
+
+# Composer authentication
+/auth.json
+
+# PHP development tools
+.phpactor.json
+_ide_helper.php
+
+# Editors and IDEs
+/.vscode/
+/.idea/
+/.nova/
+/.zed/
+/.cursor/
+/.codex/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# Old Laravel/Homestead files
+Homestead.json
+Homestead.yaml
