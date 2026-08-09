@@ -10,8 +10,12 @@
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
-                      <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
+            <flux:sidebar.nav>
+                <!-- Main navigation -->
+                <flux:sidebar.group
+                    :heading="__('Platform')"
+                    class="grid"
+                >
                     <flux:sidebar.item
                         icon="home"
                         :href="route('dashboard')"
@@ -20,7 +24,14 @@
                     >
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
+                </flux:sidebar.group>
 
+                <!-- Management modules -->
+                <flux:sidebar.group
+                    :heading="__('Management')"
+                    class="grid"
+                >
+                    <!-- Room Management -->
                     <flux:sidebar.item
                         icon="building-office-2"
                         :href="route('rooms.index')"
@@ -29,15 +40,48 @@
                     >
                         {{ __('Room Management') }}
                     </flux:sidebar.item>
-                    
-                    <flux:sidebar.item
-                        icon="book-open-text"
-                        :href="route('borrowings.index')"
-                        :current="request()->routeIs('borrowings.*')"
-                        wire:navigate
-                    >
-                        {{ __('Borrow & Return') }}
-                    </flux:sidebar.item>
+
+                    <!-- Book Management -->
+                    @if (Route::has('books.index'))
+                        <flux:sidebar.item
+                            icon="book-open-text"
+                            :href="route('books.index')"
+                            :current="request()->routeIs('books.*')"
+                            wire:navigate
+                        >
+                            {{ __('Book Management') }}
+                        </flux:sidebar.item>
+                    @else
+                        <flux:sidebar.item
+                            icon="book-open-text"
+                            badge="Pending"
+                            disabled
+                        >
+                            {{ __('Book Management') }}
+                        </flux:sidebar.item>
+                    @endif
+
+                    <!-- User Management -->
+                    @if (auth()->user()->isLibrarian())
+                        @if (Route::has('users.index'))
+                            <flux:sidebar.item
+                                icon="users"
+                                :href="route('users.index')"
+                                :current="request()->routeIs('users.*')"
+                                wire:navigate
+                            >
+                                {{ __('User Management') }}
+                            </flux:sidebar.item>
+                        @else
+                            <flux:sidebar.item
+                                icon="users"
+                                badge="Pending"
+                                disabled
+                            >
+                                {{ __('User Management') }}
+                            </flux:sidebar.item>
+                        @endif
+                    @endif
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 
