@@ -33,7 +33,7 @@ class BorrowingService
                     ->lockForUpdate()
                     ->findOrFail($book->id);
 
-                $this->markExpiredForStudent(
+                $this->markExpiredBorrowings(
                     $lockedStudent->id
                 );
 
@@ -380,19 +380,35 @@ class BorrowingService
         );
     }
 
-    private function markExpiredForStudent(
-        int $studentId
-    ): void {
+    public function markOverdueBorrowings(
+        ?int $studentId = null
+    ): int {
+        return DB::transaction(
+            fn (): int => $this->markExpiredBorrowings(
+                $studentId
+            ),
+            attempts: 3
+        );
+    }
+
+    private function markExpiredBorrowings(
+        ?int $studentId = null
+    ): int {
         $now = now();
 
-        $expiredBorrowings = Borrowing::query()
-            ->where('user_id', $studentId)
+        $query = Borrowing::query()
             ->where(
                 'status',
                 Borrowing::STATUS_BORROWED
             )
             ->whereNull('returned_at')
-            ->where('due_at', '<', $now)
+            ->where('due_at', '<', $now);
+
+        if ($studentId !== null) {
+            $query->where('user_id', $studentId);
+        }
+
+        $expiredBorrowings = $query
             ->lockForUpdate()
             ->get();
 
@@ -404,9 +420,11 @@ class BorrowingService
                 'Borrowing automatically marked overdue.',
                 [
                     'borrowing_id' => $borrowing->id,
-                    'user_id' => $studentId,
+                    'user_id' => $borrowing->user_id,
                 ]
             );
         }
+
+        return $expiredBorrowings->count();
     }
 }

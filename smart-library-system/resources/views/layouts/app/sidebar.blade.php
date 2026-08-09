@@ -29,6 +29,15 @@
                     >
                         {{ __('Room Management') }}
                     </flux:sidebar.item>
+                    
+                    <flux:sidebar.item
+                        icon="book-open-text"
+                        :href="route('borrowings.index')"
+                        :current="request()->routeIs('borrowings.*')"
+                        wire:navigate
+                    >
+                        {{ __('Borrow & Return') }}
+                    </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 
