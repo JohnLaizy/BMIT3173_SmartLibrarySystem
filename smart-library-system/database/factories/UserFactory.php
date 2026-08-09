@@ -64,4 +64,18 @@ class UserFactory extends Factory
             'two_factor_confirmed_at' => now(),
         ]);
     }
+
+    public function librarian(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_LIBRARIAN,
+        ]);
+    }
+
+    public function student(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_STUDENT,
+        ]);
+    }
 }
