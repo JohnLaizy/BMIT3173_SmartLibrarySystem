@@ -19,7 +19,7 @@
             ></div>
 
             <div
-                class="absolute -bottom-48 -right-40 size-[30rem]
+                class="absolute -bottom-48 -right-40 size-120
                        rounded-full bg-sky-500/10 blur-3xl"
             ></div>
         </div>

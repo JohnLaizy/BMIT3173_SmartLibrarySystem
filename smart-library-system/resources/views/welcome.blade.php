@@ -171,16 +171,16 @@
             >
                 <!-- Decorative circles -->
                 <div
-                    class="pointer-events-none absolute -end-48 -top-56
-                           size-[34rem] rounded-full border-[72px]
+                    class="pointer-events-none absolute -inset-e-48 -top-56
+                           size-136 rounded-full border-72
                            border-emerald-200/60
                            dark:border-emerald-100/60"
                     aria-hidden="true"
                 ></div>
 
                 <div
-                    class="pointer-events-none absolute -bottom-56 -start-40
-                           size-[30rem] rounded-full border-[64px]
+                    class="pointer-events-none absolute -bottom-56 -inset-s-40
+                           size-120 rounded-full border-64
                            border-amber-200/70 dark:border-amber-100/70"
                     aria-hidden="true"
                 ></div>
@@ -351,7 +351,7 @@
                     >
                         <div
                             class="absolute -inset-4 -z-10 rotate-2
-                                   rounded-[2rem] bg-emerald-200/70
+                                   rounded-4xl bg-emerald-200/70
                                    dark:bg-emerald-100/70"
                         ></div>
 
@@ -395,7 +395,7 @@
                             <div class="grid grid-cols-2 gap-3 p-5 sm:p-6">
                                 <div
                                     class="rounded-2xl border border-white/10
-                                           bg-white/[0.04] p-4"
+                                           bg-white/4 p-4"
                                 >
                                     <p
                                         class="text-xs font-semibold
@@ -419,7 +419,7 @@
 
                                 <div
                                     class="rounded-2xl border border-white/10
-                                           bg-white/[0.04] p-4"
+                                           bg-white/4 p-4"
                                 >
                                     <p
                                         class="text-xs font-semibold
@@ -434,49 +434,10 @@
 
                                     <p class="mt-1 text-xs text-slate-400">
                                         Book management module
-                                    </p>
-                                </div>
-                            </div>
-
-                            <!-- Room listing preview -->
-                            <div class="px-5 pb-5 sm:px-6 sm:pb-6">
-                                <div
-                                    class="rounded-2xl border border-white/10
-                                           bg-white/[0.04] p-4 shadow-sm"
-                                >
-                                    <div
-                                        class="mb-3 flex items-center
-                                               justify-between"
-                                    >
-                                        <p class="text-sm font-bold text-white">
-                                            Room Availability
-                                        </p>
-
-                                        @auth
-                                            <a
-                                                href="{{ route('rooms.index') }}"
-                                                wire:navigate.hover
-                                                class="text-xs font-semibold
-                                                       text-emerald-300
-                                                       transition
-                                                       hover:text-emerald-200"
-                                            >
-                                                View All
-                                            </a>
-                                        @else
-                                            <span class="text-xs text-slate-400">
-                                                Updated now
-                                            </span>
-                                        @endauth
-                                    </div>
-
-                                    <div class="space-y-2.5">
-                                        @forelse ($rooms as $room)
-                                            <div
-                                                class="flex items-center
+                          …528 tokens truncated…                  class="flex items-center
                                                        justify-between gap-4
                                                        rounded-xl
-                                                       bg-white/[0.06]
+                                                       bg-white/6
                                                        px-3.5 py-3"
                                             >
                                                 <div class="min-w-0">
@@ -515,7 +476,7 @@
                                         @empty
                                             <div
                                                 class="rounded-xl
-                                                       bg-white/[0.06]
+                                                       bg-white/6
                                                        px-4 py-6 text-center
                                                        text-sm text-slate-400"
                                             >
@@ -781,7 +742,7 @@
             <section class="bg-zinc-100 py-20 dark:bg-zinc-900 sm:py-24">
                 <div class="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
                     <div
-                        class="rounded-[2rem] bg-slate-950 px-6 py-12
+                        class="rounded-4xl bg-slate-950 px-6 py-12
                                text-center text-white shadow-xl
                                sm:px-12 sm:py-16"
                     >
@@ -886,6 +847,6 @@
             </div>
         </footer>
 
-        @fluxScripts
+@fluxScripts
     </body>
 </html>
