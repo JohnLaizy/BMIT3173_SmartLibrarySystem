@@ -61,6 +61,18 @@
                         </flux:sidebar.item>
                     @endif
 
+                    <!-- Borrow & Return -->
+                    @if (Route::has('borrowings.index'))
+                        <flux:sidebar.item
+                            icon="book-open-text"
+                            :href="route('borrowings.index')"
+                            :current="request()->routeIs('borrowings.*')"
+                            wire:navigate
+                        >
+                            {{ __('Borrow & Return') }}
+                        </flux:sidebar.item>
+                    @endif
+
                     <!-- User Management -->
                     @if (auth()->user()->isLibrarian())
                         @if (Route::has('users.index'))
