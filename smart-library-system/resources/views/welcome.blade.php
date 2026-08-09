@@ -14,8 +14,11 @@
 
         <title>Smart Library System</title>
 
-        <link rel="icon" href="/favicon.ico" sizes="any">
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+        <link
+            rel="icon"
+            href="{{ asset('smart-library-icon.svg') }}"
+            type="image/svg+xml"
+        >
 
         @fonts
         @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -42,30 +45,9 @@
                     class="flex items-center gap-3"
                     wire:navigate.hover
                 >
-                    <span
-                        class="grid size-10 place-items-center rounded-xl
-                               bg-emerald-600 text-white shadow-sm
-                               dark:bg-emerald-500"
-                    >
-                        <svg
-                            class="size-5"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            aria-hidden="true"
-                        >
-                            <path
-                                d="M4.75 5.75A2.75 2.75 0 0 1 7.5 3h3.25A2.25
-                                   2.25 0 0 1 13 5.25V20a3.5 3.5 0 0 0-3.5-3.5
-                                   H4.75V5.75ZM19.25 5.75A2.75 2.75 0 0 0
-                                   16.5 3h-1.25A2.25 2.25 0 0 0 13 5.25V20
-                                   a3.5 3.5 0 0 1 3.5-3.5h2.75V5.75Z"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linejoin="round"
-                            />
-                        </svg>
-                    </span>
-
+                  <x-app-logo-icon
+                         class="size-10 shrink-0 rounded-xl shadow-sm"
+                    />
                     <span>
                         <span
                             class="block font-bold leading-tight

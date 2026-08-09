@@ -36,29 +36,10 @@
                     class="flex items-center gap-3"
                     wire:navigate.hover
                 >
-                    <span
-                        class="grid size-10 place-items-center
-                               rounded-xl bg-emerald-600 text-white
-                               shadow-lg shadow-emerald-950/30"
-                    >
-                        <svg
-                            class="size-5"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            aria-hidden="true"
-                        >
-                            <path
-                                d="M4.75 5.75A2.75 2.75 0 0 1 7.5 3h3.25A2.25
-                                   2.25 0 0 1 13 5.25V20a3.5 3.5 0 0 0-3.5-3.5
-                                   H4.75V5.75ZM19.25 5.75A2.75 2.75 0 0 0
-                                   16.5 3h-1.25A2.25 2.25 0 0 0 13 5.25V20
-                                   a3.5 3.5 0 0 1 3.5-3.5h2.75V5.75Z"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linejoin="round"
-                            />
-                        </svg>
-                    </span>
+                    <x-app-logo-icon
+                        class="size-10 shrink-0 rounded-xl
+                            shadow-lg shadow-indigo-950/30"
+                    />
 
                     <span>
                         <span class="block font-bold leading-tight text-white">
