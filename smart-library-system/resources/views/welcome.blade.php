@@ -434,7 +434,46 @@
 
                                     <p class="mt-1 text-xs text-slate-400">
                                         Book management module
-                          …528 tokens truncated…                  class="flex items-center
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Room listing preview -->
+                            <div class="px-5 pb-5 sm:px-6 sm:pb-6">
+                                <div
+                                    class="rounded-2xl border border-white/10
+                                           bg-white/4 p-4 shadow-sm"
+                                >
+                                    <div
+                                        class="mb-3 flex items-center
+                                               justify-between"
+                                    >
+                                        <p class="text-sm font-bold text-white">
+                                            Room Availability
+                                        </p>
+
+                                        @auth
+                                            <a
+                                                href="{{ route('rooms.index') }}"
+                                                wire:navigate.hover
+                                                class="text-xs font-semibold
+                                                       text-emerald-300
+                                                       transition
+                                                       hover:text-emerald-200"
+                                            >
+                                                View All
+                                            </a>
+                                        @else
+                                            <span class="text-xs text-slate-400">
+                                                Updated now
+                                            </span>
+                                        @endauth
+                                    </div>
+
+                                    <div class="space-y-2.5">
+                                        @forelse ($rooms as $room)
+                                            <div
+                                                class="flex items-center
                                                        justify-between gap-4
                                                        rounded-xl
                                                        bg-white/6
@@ -847,6 +886,6 @@
             </div>
         </footer>
 
-@fluxScripts
+        @fluxScripts
     </body>
 </html>
