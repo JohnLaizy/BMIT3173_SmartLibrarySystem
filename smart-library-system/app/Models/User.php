@@ -13,6 +13,9 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
+//For Borrowing and Returning
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
 /**
  * @property int $id
  * @property string $name
@@ -72,5 +75,11 @@ class User extends Authenticatable
     public function isLibrarian(): bool
     {
         return $this->role === self::ROLE_LIBRARIAN;
+    }
+
+    // for borrowing and returning
+    public function borrowings(): HasMany
+    {
+        return $this->hasMany(Borrowing::class);
     }
 }

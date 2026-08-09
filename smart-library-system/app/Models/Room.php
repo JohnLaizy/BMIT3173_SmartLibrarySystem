@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+//for borrowing and returning
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
 class Room extends Model
 {
     /** @use HasFactory<RoomFactory> */
@@ -57,5 +60,11 @@ class Room extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    //for borrowing and returning
+    public function borrowings(): HasMany
+    {
+        return $this->hasMany(Borrowing::class);
     }
 }
