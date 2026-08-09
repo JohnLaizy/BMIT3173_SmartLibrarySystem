@@ -25,11 +25,16 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property string $role
  */
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
+    public const ROLE_STUDENT = 'student';
+
+    public const ROLE_LIBRARIAN = 'librarian';
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
 
@@ -56,5 +61,16 @@ class User extends Authenticatable
         return Str::length($initials) > 1
             ? Str::substr($initials, 0, 1).Str::substr($initials, -1)
             : $initials;
+    }
+
+    //Helpers
+    public function isStudent(): bool
+    {
+        return $this->role === self::ROLE_STUDENT;
+    }
+
+    public function isLibrarian(): bool
+    {
+        return $this->role === self::ROLE_LIBRARIAN;
     }
 }
