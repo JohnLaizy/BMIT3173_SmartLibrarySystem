@@ -41,7 +41,7 @@
                         class="rounded-full border border-emerald-500/30
                                bg-emerald-500/10 px-3 py-1
                                text-xs font-semibold uppercase
-                               tracking-wide text-emerald-300"
+                               tracking-wide text-emerald-700 dark:text-emerald-300"
                     >
                         {{ auth()->user()->isLibrarian()
                             ? 'Librarian'
@@ -81,7 +81,7 @@
         >
             <!-- Total Rooms -->
             <article
-                class="rounded-2xl border border-zinc-200 dark:border-zinc-200 dark:border-zinc-700
+                class="rounded-2xl border border-zinc-200 dark:border-zinc-700
                        bg-white dark:bg-zinc-900 p-5 shadow-sm"
             >
                 <div class="flex items-start justify-between gap-4">
@@ -158,7 +158,7 @@
                         </p>
 
                         <p
-                            class="mt-3 text-3xl font-bold text-red-600 dark:text-red-600 dark:text-red-400"
+                            class="mt-3 text-3xl font-bold text-red-600 dark:text-red-400"
                         >
                             {{ $roomStats['unavailable'] }}
                         </p>
@@ -217,11 +217,11 @@
             <!-- Recently Updated Rooms -->
             <section
                 class="overflow-hidden rounded-2xl border
-                       border-zinc-200 dark:border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                       border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
             >
                 <div
                     class="flex items-center justify-between gap-4
-                           border-b border-zinc-200 dark:border-zinc-200 dark:border-zinc-700 px-5 py-5 sm:px-6"
+                           border-b border-zinc-200 dark:border-zinc-700 px-5 py-5 sm:px-6"
                 >
                     <div>
                         <h2 class="font-bold text-zinc-900 dark:text-white">
@@ -239,7 +239,7 @@
                                rounded-lg px-3 text-sm font-semibold
                                text-emerald-600 dark:text-emerald-400 transition
                                hover:bg-emerald-500/10
-                               hover:text-emerald-300"
+                               hover:text-emerald-700 dark:hover:text-emerald-300"
                     >
                         View all
                     </a>
@@ -262,9 +262,9 @@
 
                     <a
                         href="{{ route('rooms.show', $room) }}"
-                        class="grid gap-4 border-b border-zinc-200 dark:border-zinc-200 dark:border-zinc-800
+                        class="grid gap-4 border-b border-zinc-200 dark:border-zinc-800
                                px-5 py-4 transition last:border-b-0
-                               hover:bg-zinc-50 dark:hover:bg-zinc-200 dark:bg-zinc-800/70
+                               hover:bg-zinc-50 dark:hover:bg-zinc-800/70
                                sm:grid-cols-[1fr_auto]
                                sm:items-center sm:px-6"
                     >
@@ -333,7 +333,7 @@
             <aside class="flex flex-col gap-6">
                 <!-- Status Overview -->
                 <section
-                    class="rounded-2xl border border-zinc-200 dark:border-zinc-200 dark:border-zinc-700
+                    class="rounded-2xl border border-zinc-200 dark:border-zinc-700
                            bg-white dark:bg-zinc-900 p-5 sm:p-6"
                 >
                     <h2 class="font-bold text-zinc-900 dark:text-white">
@@ -367,7 +367,7 @@
                                 <div
                                     class="h-full rounded-full
                                            bg-emerald-500"
-                                    style="width: {{ $availablePercentage }}%"
+                                    @style(['width: '.$availablePercentage.'%'])
                                 ></div>
                             </div>
                         </div>
@@ -393,7 +393,7 @@
                             >
                                 <div
                                     class="h-full rounded-full bg-red-500"
-                                    style="width: {{ $unavailablePercentage }}%"
+                                    @style(['width: '.$unavailablePercentage.'%'])
                                 ></div>
                             </div>
                         </div>
@@ -420,7 +420,7 @@
                                 <div
                                     class="h-full rounded-full
                                            bg-amber-500"
-                                    style="width: {{ $maintenancePercentage }}%"
+                                    @style(['width: '.$maintenancePercentage.'%'])
                                 ></div>
                             </div>
                         </div>
@@ -428,30 +428,30 @@
                 </section>
 
                 <!-- Quick Access -->
-<section
-    class="rounded-2xl border border-emerald-200
-           bg-emerald-50/70 p-6 shadow-sm
-           dark:border-emerald-500/20
-           dark:bg-emerald-500/5 sm:p-7"
->
-    <p
-        class="text-sm font-bold uppercase tracking-wider
-               text-emerald-700 dark:text-emerald-400"
-    >
+                <section
+                    class="rounded-2xl border border-emerald-200
+                           bg-emerald-50/70 p-6 shadow-sm
+                           dark:border-emerald-500/20
+                           dark:bg-emerald-500/5 sm:p-7"
+                >
+                    <p
+                        class="text-sm font-bold uppercase tracking-wider
+                               text-emerald-700 dark:text-emerald-400"
+                    >
                         Quick Access
                     </p>
 
                     @if (auth()->user()->isLibrarian())
                         <h2
                             class="mt-3 text-xl font-bold
-                                text-zinc-900 dark:text-white"
+                                   text-zinc-900 dark:text-white"
                         >
                             Manage library rooms
                         </h2>
 
                         <p
                             class="mt-3 max-w-sm text-sm leading-6
-                                text-zinc-600 dark:text-zinc-400"
+                                   text-zinc-600 dark:text-zinc-400"
                         >
                             Add new rooms or update room status,
                             capacity and facilities.
@@ -469,14 +469,14 @@
                     @else
                         <h2
                             class="mt-3 text-xl font-bold
-                                text-zinc-900 dark:text-white"
+                                   text-zinc-900 dark:text-white"
                         >
                             Find an available room
                         </h2>
 
                         <p
                             class="mt-3 max-w-sm text-sm leading-6
-                                text-zinc-600 dark:text-zinc-400"
+                                   text-zinc-600 dark:text-zinc-400"
                         >
                             View room capacity, location, status
                             and available facilities.
@@ -497,3 +497,4 @@
         </div>
     </div>
 </x-layouts::app>
+
