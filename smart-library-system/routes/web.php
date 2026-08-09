@@ -2,11 +2,52 @@
 
 use App\Http\Controllers\RoomController;
 use Illuminate\Support\Facades\Route;
+use App\Models\Room;
 
-Route::view('/', 'welcome')->name('home');
+Route::get('/', function () {
+    $rooms = Room::query()
+        ->orderBy('room_number')
+        ->limit(3)
+        ->get();
+
+    $availableRoomsCount = Room::query()
+        ->where('status', 'available')
+        ->count();
+
+    $totalRoomsCount = Room::query()->count();
+
+    return view('welcome', compact(
+        'rooms',
+        'availableRoomsCount',
+        'totalRoomsCount'
+    ));
+})->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::view('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', function () {
+    $statusCounts = Room::query()
+        ->selectRaw('status, COUNT(*) as total')
+        ->groupBy('status')
+        ->pluck('total', 'status');
+
+    $roomStats = [
+        'total' => $statusCounts->sum(),
+        'available' => $statusCounts->get('available', 0),
+        'unavailable' => $statusCounts->get('unavailable', 0),
+        'maintenance' => $statusCounts->get('maintenance', 0),
+    ];
+
+    $recentRooms = Room::query()
+        ->with('creator')
+        ->latest('updated_at')
+        ->limit(5)
+        ->get();
+
+    return view('dashboard', compact(
+        'roomStats',
+        'recentRooms'
+    ));
+})->name('dashboard');
 
     Route::resource('rooms', RoomController::class);
 });
