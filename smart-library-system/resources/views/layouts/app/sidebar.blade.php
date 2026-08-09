@@ -10,25 +10,26 @@
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
-           <flux:sidebar.group :heading="__('Platform')" class="grid">
-    <flux:sidebar.item
-        icon="home"
-        :href="route('dashboard')"
-        :current="request()->routeIs('dashboard')"
-        wire:navigate
-    >
-        {{ __('Dashboard') }}
-    </flux:sidebar.item>
+                      <flux:sidebar.nav>
+                <flux:sidebar.group :heading="__('Platform')" class="grid">
+                    <flux:sidebar.item
+                        icon="home"
+                        :href="route('dashboard')"
+                        :current="request()->routeIs('dashboard')"
+                        wire:navigate
+                    >
+                        {{ __('Dashboard') }}
+                    </flux:sidebar.item>
 
-    <flux:sidebar.item
-        icon="building-office-2"
-        :href="route('rooms.index')"
-        :current="request()->routeIs('rooms.*')"
-        wire:navigate
-    >
-        {{ __('Room Management') }}
-    </flux:sidebar.item>
-</flux:sidebar.group>
+                    <flux:sidebar.item
+                        icon="building-office-2"
+                        :href="route('rooms.index')"
+                        :current="request()->routeIs('rooms.*')"
+                        wire:navigate
+                    >
+                        {{ __('Room Management') }}
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
             </flux:sidebar.nav>
 
             <flux:spacer />

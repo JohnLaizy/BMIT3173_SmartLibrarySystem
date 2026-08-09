@@ -46,12 +46,6 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
-    public function librarian(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'role' => User::ROLE_LIBRARIAN,
-        ]);
-    }
 
     /**
      * Indicate that the model has two-factor authentication configured.

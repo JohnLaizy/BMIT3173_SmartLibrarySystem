@@ -2,17 +2,17 @@
 
 namespace Tests\Feature\Models;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\Models\User;
 
 class UserRoleTest extends TestCase
 {
     use RefreshDatabase;
+
     /**
      * A basic feature test example.
      */
-
     public function test_a_normal_user_is_a_student(): void
     {
         $user = User::factory()->create();

@@ -38,20 +38,6 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
 
-    public const ROLE_LIBRARIAN = 'librarian';
-
-    public const ROLE_STUDENT = 'student';
-
-    public function isLibrarian(): bool
-    {
-        return $this->role === self::ROLE_LIBRARIAN;
-    }
-
-    public function isStudent(): bool
-    {
-        return $this->role === self::ROLE_STUDENT;
-    }
-
     /**
      * Get the attributes that should be cast.
      *
@@ -77,7 +63,7 @@ class User extends Authenticatable
             : $initials;
     }
 
-    //Helpers
+    // Helpers
     public function isStudent(): bool
     {
         return $this->role === self::ROLE_STUDENT;
