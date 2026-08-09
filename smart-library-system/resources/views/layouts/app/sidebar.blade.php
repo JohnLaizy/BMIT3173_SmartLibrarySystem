@@ -6,7 +6,7 @@
     <body class="min-h-screen bg-white dark:bg-zinc-800">
         <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.header>
-                <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
+                <x-app-logo :sidebar="true" href="{{ route('home') }}" wire:navigate.hover />
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
@@ -20,7 +20,7 @@
                         icon="home"
                         :href="route('dashboard')"
                         :current="request()->routeIs('dashboard')"
-                        wire:navigate
+                        wire:navigate.hover
                     >
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
@@ -36,7 +36,7 @@
                         icon="building-office-2"
                         :href="route('rooms.index')"
                         :current="request()->routeIs('rooms.*')"
-                        wire:navigate
+                        wire:navigate.hover
                     >
                         {{ __('Room Management') }}
                     </flux:sidebar.item>
@@ -47,7 +47,7 @@
                             icon="book-open-text"
                             :href="route('books.index')"
                             :current="request()->routeIs('books.*')"
-                            wire:navigate
+                            wire:navigate.hover
                         >
                             {{ __('Book Management') }}
                         </flux:sidebar.item>
@@ -80,7 +80,7 @@
                                 icon="users"
                                 :href="route('users.index')"
                                 :current="request()->routeIs('users.*')"
-                                wire:navigate
+                                wire:navigate.hover
                             >
                                 {{ __('User Management') }}
                             </flux:sidebar.item>
@@ -144,7 +144,7 @@
                     <flux:menu.separator />
 
                     <flux:menu.radio.group>
-                        <flux:menu.item :href="route('profile.edit')" icon="cog" wire:navigate>
+                        <flux:menu.item :href="route('profile.edit')" icon="cog" wire:navigate.hover>
                             {{ __('Settings') }}
                         </flux:menu.item>
                     </flux:menu.radio.group>
@@ -167,7 +167,9 @@
             </flux:dropdown>
         </flux:header>
 
-        {{ $slot }}
+        
+       {{ $slot }}
+     
 
         @persist('toast')
             <flux:toast.group>

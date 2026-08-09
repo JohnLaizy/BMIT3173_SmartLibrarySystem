@@ -1,5 +1,9 @@
 <x-layouts::app :title="__('Room Management')">
-    <div class="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-2 sm:px-4">
+    <div
+         data-page-transition
+         class="mx-auto flex w-full max-w-6xl flex-1
+             flex-col gap-8 px-2 sm:px-4"
+    >
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
                 <flux:heading size="xl" level="1">
