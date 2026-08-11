@@ -7,10 +7,12 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+// For Borrowing and Returning
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 /**
@@ -72,5 +74,43 @@ class User extends Authenticatable
     public function isLibrarian(): bool
     {
         return $this->role === self::ROLE_LIBRARIAN;
+    }
+
+    /**
+     * 用户的借书记录。
+     *
+     * @return HasMany<Borrowing, $this>
+     */
+    public function borrowings(): HasMany
+    {
+        return $this->hasMany(
+            Borrowing::class
+        );
+    }
+
+    /**
+     * Student 建立的 Room Reservations。
+     *
+     * @return HasMany<RoomReservation, $this>
+     */
+    public function roomReservations(): HasMany
+    {
+        return $this->hasMany(
+            RoomReservation::class,
+            'user_id'
+        );
+    }
+
+    /**
+     * Librarian 建立的 Room Maintenance 记录。
+     *
+     * @return HasMany<RoomMaintenance, $this>
+     */
+    public function createdRoomMaintenances(): HasMany
+    {
+        return $this->hasMany(
+            RoomMaintenance::class,
+            'created_by'
+        );
     }
 }

@@ -3,10 +3,16 @@
 namespace App\Models;
 
 use Database\Factories\RoomFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property-read Collection<int, RoomMaintenance> $maintenances
+ * @property-read Collection<int, RoomReservation> $reservations
+ */
 class Room extends Model
 {
     /** @use HasFactory<RoomFactory> */
@@ -57,5 +63,25 @@ class Room extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * @return HasMany<RoomMaintenance, $this>
+     */
+    public function maintenances(): HasMany
+    {
+        return $this->hasMany(
+            RoomMaintenance::class
+        );
+    }
+
+    /**
+     * @return HasMany<RoomReservation, $this>
+     */
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(
+            RoomReservation::class
+        );
     }
 }

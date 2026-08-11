@@ -1,5 +1,9 @@
 <x-layouts::app :title="__('Add Room')">
-    <div class="mx-auto w-full max-w-4xl">
+    <div
+    data-page-transition
+    class="mx-auto flex w-full max-w-6xl flex-1
+           flex-col gap-8 px-2 sm:px-4"
+>
         <div class="mb-6">
             <flux:heading size="xl" level="1">
                 Add Room
