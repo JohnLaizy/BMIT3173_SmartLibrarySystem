@@ -110,6 +110,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 [BorrowingController::class, 'rejectPayment']
             )->name('payment.reject');
         });
-});
+
+        Route::get('/bookings/create',
+        [BookingController::class,'create'])
+        ->middleware('auth')
+        ->name('bookings.create');
+
+
+        require __DIR__.'/settings.php';
+        });
+
+        Route::post('/bookings',
+        [BookingController::class,'store'])
+        ->middleware('auth');
+
+        Route::patch('/bookings/{booking}/cancel',
+        [BookingController::class,'cancel'])
+        ->middleware('auth');
 
 require __DIR__.'/settings.php';

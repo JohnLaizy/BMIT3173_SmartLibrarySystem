@@ -7,10 +7,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Booking extends Model
 {
+    protected $fillable = [
+        'user_id',
+        'room_id',
+        'booking_date',
+        'start_time',
+        'end_time',
+        'status'
+    ];
+
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
+
 
     public function room(): BelongsTo
     {

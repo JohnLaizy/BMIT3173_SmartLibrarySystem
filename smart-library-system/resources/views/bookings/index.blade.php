@@ -20,6 +20,14 @@
         @endif
 
 
+        @if(session('error'))
+            <div class="rounded-lg bg-red-50 px-4 py-3 text-red-800">
+                {{ session('error') }}
+            </div>
+        @endif
+
+
+
         <div class="rounded-xl border border-zinc-200 bg-white p-5">
 
             <flux:table>
@@ -46,18 +54,26 @@
                         Status
                     </flux:table.column>
 
+                    <flux:table.column>
+                        Action
+                    </flux:table.column>
+
                 </flux:table.columns>
 
 
+
                 <flux:table.rows>
+
 
                     @foreach($bookings as $booking)
 
                     <flux:table.row>
 
+
                         <flux:table.cell>
                             {{ $booking->user->name }}
                         </flux:table.cell>
+
 
 
                         <flux:table.cell>
@@ -65,9 +81,11 @@
                         </flux:table.cell>
 
 
+
                         <flux:table.cell>
                             {{ $booking->booking_date }}
                         </flux:table.cell>
+
 
 
                         <flux:table.cell>
@@ -77,12 +95,50 @@
                         </flux:table.cell>
 
 
+
                         <flux:table.cell>
                             {{ ucfirst($booking->status) }}
                         </flux:table.cell>
 
 
+
+                        <flux:table.cell>
+
+
+                            @if($booking->status == 'confirmed')
+
+                                <form method="POST"
+                                      action="/bookings/{{ $booking->id }}/cancel">
+
+                                    @csrf
+                                    @method('PATCH')
+
+
+                                    <flux:button 
+                                        type="submit"
+                                        variant="danger">
+
+                                        Cancel
+
+                                    </flux:button>
+
+
+                                </form>
+
+
+                            @else
+
+                                -
+
+                            @endif
+
+
+                        </flux:table.cell>
+
+
+
                     </flux:table.row>
+
 
                     @endforeach
 
@@ -92,8 +148,11 @@
 
             </flux:table>
 
+
         </div>
 
+
     </div>
+
 
 </x-layouts::app>
