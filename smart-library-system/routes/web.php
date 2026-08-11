@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\RoomController;
+use App\Http\Controllers\BookingController;
 use Illuminate\Support\Facades\Route;
 use App\Models\Room;
 
@@ -55,6 +56,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
         'rooms',
         RoomController::class
     );
+
+    Route::prefix('bookings')
+    ->name('bookings.')
+    ->group(function () {
+
+        Route::get(
+            '/',
+            [BookingController::class, 'index']
+        )->name('index');
+
+        Route::post(
+            '/',
+            [BookingController::class, 'store']
+        )->name('store');
+
+    });
 
     Route::prefix('borrowings')
         ->name('borrowings.')

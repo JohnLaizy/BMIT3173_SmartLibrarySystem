@@ -18,7 +18,7 @@ class Book extends Model
     protected function casts(): array
     {
         return [
-            'total_copies' => 'integer',
+            'total_copies' => 'integer',    
             'available_copies' => 'integer',
         ];
     }
