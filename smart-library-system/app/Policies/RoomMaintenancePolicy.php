@@ -2,25 +2,19 @@
 
 namespace App\Policies;
 
-use App\Models\Room;
+use App\Models\RoomMaintenance;
 use App\Models\User;
 
-class RoomPolicy
+class RoomMaintenancePolicy
 {
     public function viewAny(User $user): bool
     {
         return $user->isLibrarian();
     }
 
-    public function viewAvailability(User $user): bool
-    {
-        return $user->isLibrarian()
-            || $user->isStudent();
-    }
-
     public function view(
         User $user,
-        Room $room
+        RoomMaintenance $maintenance
     ): bool {
         return $user->isLibrarian();
     }
@@ -32,28 +26,14 @@ class RoomPolicy
 
     public function update(
         User $user,
-        Room $room
+        RoomMaintenance $maintenance
     ): bool {
         return $user->isLibrarian();
     }
 
     public function delete(
         User $user,
-        Room $room
-    ): bool {
-        return $user->isLibrarian();
-    }
-
-    public function restore(
-        User $user,
-        Room $room
-    ): bool {
-        return $user->isLibrarian();
-    }
-
-    public function forceDelete(
-        User $user,
-        Room $room
+        RoomMaintenance $maintenance
     ): bool {
         return $user->isLibrarian();
     }

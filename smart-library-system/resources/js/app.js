@@ -1,10 +1,16 @@
+/*
+|--------------------------------------------------------------------------
+| 页面进入动画
+|--------------------------------------------------------------------------
+*/
+
 function animatePageContent() {
     const page = document.querySelector(
-        '[data-page-transition]'
+        '[data-page-transition]',
     );
 
     const reduceMotion = window.matchMedia(
-        '(prefers-reduced-motion: reduce)'
+        '(prefers-reduced-motion: reduce)',
     ).matches;
 
     if (!page || reduceMotion) {
@@ -36,6 +42,35 @@ function animatePageContent() {
     );
 }
 
-document.addEventListener('livewire:navigated', () => {
-    requestAnimationFrame(animatePageContent);
-});
+/*
+|--------------------------------------------------------------------------
+| 第一次载入页面
+|--------------------------------------------------------------------------
+*/
+
+if (document.readyState === 'loading') {
+    document.addEventListener(
+        'DOMContentLoaded',
+        animatePageContent,
+        {
+            once: true,
+        },
+    );
+} else {
+    animatePageContent();
+}
+
+/*
+|--------------------------------------------------------------------------
+| Livewire 页面跳转
+|--------------------------------------------------------------------------
+*/
+
+document.addEventListener(
+    'livewire:navigated',
+    () => {
+        requestAnimationFrame(() => {
+            animatePageContent();
+        });
+    },
+);

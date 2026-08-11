@@ -38,6 +38,40 @@
             </div>
         @endif
 
+       @if (session('error'))
+    {{-- 删除失败提示：保留预约历史，不能删除有关联预约的房间 --}}
+    <div
+        role="alert"
+        class="rounded-xl border border-red-500/30
+               bg-red-500/10 px-4 py-4
+               text-red-800 dark:text-red-200"
+    >
+        <div class="flex items-start gap-3">
+            {{-- 红色警告图示 --}}
+            <div
+                class="flex size-6 shrink-0 items-center
+                       justify-center rounded-full
+                       bg-red-500/20 text-sm font-bold
+                       text-red-700 dark:text-red-300"
+                aria-hidden="true"
+            >
+                !
+            </div>
+
+            <div>
+                <p class="font-semibold">
+                    Room cannot be deleted
+                </p>
+
+                <p class="mt-1 text-sm leading-6
+                          text-red-700 dark:text-red-300">
+                    {{ session('error') }}
+                </p>
+            </div>
+        </div>
+    </div>
+@endif
+
         @if ($rooms->isEmpty())
             <div
                 class="rounded-xl border border-dashed border-zinc-300
@@ -148,7 +182,10 @@
                                         />
                                         @can('update', $room)
                                         <flux:button
-                                            :href="route('rooms.edit', $room)"
+                                            :href="route('rooms.edit', [
+                                                'room' => $room,
+                                                'page' => $rooms->currentPage(),
+                                            ])"
                                             size="sm"
                                             variant="ghost"
                                             icon="pencil"
@@ -161,11 +198,17 @@
                                             method="POST"
                                             action="{{ route('rooms.destroy', $room) }}"
                                             onsubmit="return confirm(
-                                                'Are you sure you want to delete this room?'
+                                                'Delete this room? Rooms with reservation records cannot be deleted.'
                                             )"
                                         >
                                             @csrf
                                             @method('DELETE')
+
+                                            <input
+                                                type="hidden"
+                                                name="page"
+                                                value="{{ $rooms->currentPage() }}"
+                                            >
 
                                             <flux:button
                                                 type="submit"
