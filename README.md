@@ -1,3 +1,13 @@
+# Remember to do when pulling (not first time)
+```powershell
+cd .\smart-library-system
+composer install
+npm ci --include=optional
+php artisan migrate
+composer run dev
+```
+
+
 # Smart Library System — Setup with GitHub Desktop
 
 # Preparing same environment
