@@ -6,9 +6,9 @@ use App\Exceptions\BorrowingRuleViolation;
 use App\Models\Book;
 use App\Models\Borrowing;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Carbon\CarbonInterface;
 use LogicException;
 
 class BorrowingService
@@ -97,8 +97,7 @@ class BorrowingService
                 $borrowing = Borrowing::query()->create([
                     'user_id' => $lockedStudent->id,
                     'book_id' => $lockedBook->id,
-                    'status' =>
-                        Borrowing::STATUS_BORROWED,
+                    'status' => Borrowing::STATUS_BORROWED,
                     'borrowed_at' => $borrowedAt,
                     'due_at' => $dueAt,
                 ]);
@@ -200,8 +199,7 @@ class BorrowingService
                     'borrowing_id' => $lockedBorrowing->id,
                     'book_id' => $lockedBook->id,
                     'user_id' => $lockedBorrowing->user_id,
-                    'overdue_fee_cents' =>
-                        $lockedBorrowing->overdue_fee_cents,
+                    'overdue_fee_cents' => $lockedBorrowing->overdue_fee_cents,
                 ]);
 
                 return $lockedBorrowing;
@@ -239,8 +237,7 @@ class BorrowingService
                 $lockedBorrowing->save();
 
                 Log::info('Overdue payment approved.', [
-                    'borrowing_id' =>
-                        $lockedBorrowing->id,
+                    'borrowing_id' => $lockedBorrowing->id,
                     'approved_by' => $librarian->id,
                 ]);
 
@@ -276,8 +273,7 @@ class BorrowingService
                 $lockedBorrowing->save();
 
                 Log::warning('Overdue payment rejected.', [
-                    'borrowing_id' =>
-                        $lockedBorrowing->id,
+                    'borrowing_id' => $lockedBorrowing->id,
                     'rejected_by' => $librarian->id,
                 ]);
 
@@ -368,8 +364,7 @@ class BorrowingService
                 Log::info(
                     'Overdue payment submitted for approval.',
                     [
-                        'borrowing_id' =>
-                            $lockedBorrowing->id,
+                        'borrowing_id' => $lockedBorrowing->id,
                         'user_id' => $student->id,
                     ]
                 );

@@ -1,5 +1,13 @@
 <x-layouts::app :title="__('Edit Room')">
-    <div
+@php
+    /*
+     * 从 Room Management list 带来的页码。
+     * 如果 URL 没有 page，例如直接进入 /rooms/1/edit，
+     * 就安全地使用第一页。
+     */
+    $page = max(1, (int) request()->query('page', 1));
+@endphp    
+<div
         data-page-transition
         class="mx-auto flex w-full max-w-6xl flex-1
                flex-col gap-8 px-2 sm:px-4"
@@ -20,13 +28,15 @@
             </div>
 
             <flux:button
-                :href="route('rooms.show', $room)"
+                :href="route('rooms.index', [
+    'page' => $page,
+])"
                 variant="ghost"
                 icon="arrow-left"
                 class="self-start"
                 wire:navigate.hover
             >
-                Back to Room
+                Back to Room Management
             </flux:button>
         </div>
 
@@ -35,18 +45,23 @@
             class="rounded-xl border border-zinc-200 bg-white p-6
                    dark:border-zinc-700 dark:bg-zinc-900"
         >
-            <form
-                method="POST"
-                action="{{ route('rooms.update', $room) }}"
-            >
+<form
+    method="POST"
+    action="{{ route('rooms.update', [
+        'room' => $room,
+        'page' => $page,
+    ]) }}"
+>
                 @csrf
                 @method('PUT')
-
+            
                 @include('rooms._form')
 
                 <div class="mt-10 flex justify-end gap-3">
                     <flux:button
-                        :href="route('rooms.show', $room)"
+                        :href="route('rooms.index', [
+                        'page' => $page,
+                    ])"
                         variant="ghost"
                         wire:navigate.hover
                     >

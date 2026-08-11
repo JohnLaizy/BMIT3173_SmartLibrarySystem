@@ -21,7 +21,7 @@ class PaymentPendingState extends BorrowingState
             'payment_approved_at',
             $approvedAt
         );
-        
+
         $this->borrowing->payment_approved_by =
             $librarian->id;
 

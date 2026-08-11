@@ -5,6 +5,7 @@ namespace Tests\Feature\Settings;
 use App\Livewire\Settings\Profile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -12,13 +13,22 @@ class ProfileUpdateTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * 确认已登录用户可以打开 Profile Settings 页面。
+     */
     public function test_profile_page_is_displayed(): void
     {
-        $this->actingAs($user = User::factory()->create());
+        $user = User::factory()->create();
 
-        $this->get('/settings/profile')->assertOk();
+        $this->actingAs($user);
+
+        $this->get('/settings/profile')
+            ->assertOk();
     }
 
+    /**
+     * 确认用户可以更新自己的 Name 和 Email。
+     */
     public function test_profile_information_can_be_updated(): void
     {
         $user = User::factory()->create();
@@ -26,19 +36,37 @@ class ProfileUpdateTest extends TestCase
         $this->actingAs($user);
 
         $response = Livewire::test(Profile::class)
-            ->set('name', 'Test User')
-            ->set('email', 'test@example.com')
+            ->set('profileName', 'Test User')
+            ->set('profileEmail', 'test@example.com')
             ->call('updateProfileInformation');
 
         $response->assertHasNoErrors();
 
         $user->refresh();
 
-        $this->assertEquals('Test User', $user->name);
-        $this->assertEquals('test@example.com', $user->email);
-        $this->assertNull($user->email_verified_at);
+        $this->assertEquals(
+            'Test User',
+            $user->name
+        );
+
+        $this->assertEquals(
+            'test@example.com',
+            $user->email
+        );
+
+        /*
+         * Email 改变后，系统必须移除原本的验证状态，
+         * 要求用户重新验证新的 Email。
+         */
+        $this->assertNull(
+            $user->email_verified_at
+        );
     }
 
+    /**
+     * 确认 Email 没有变化时，
+     * 系统不会错误清除 email_verified_at。
+     */
     public function test_email_verification_status_is_unchanged_when_email_address_is_unchanged(): void
     {
         $user = User::factory()->create();
@@ -46,15 +74,20 @@ class ProfileUpdateTest extends TestCase
         $this->actingAs($user);
 
         $response = Livewire::test(Profile::class)
-            ->set('name', 'Test User')
-            ->set('email', $user->email)
+            ->set('profileName', 'Test User')
+            ->set('profileEmail', $user->email)
             ->call('updateProfileInformation');
 
         $response->assertHasNoErrors();
 
-        $this->assertNotNull($user->refresh()->email_verified_at);
+        $this->assertNotNull(
+            $user->refresh()->email_verified_at
+        );
     }
 
+    /**
+     * 确认用户可以删除自己的 account。
+     */
     public function test_user_can_delete_their_account(): void
     {
         $user = User::factory()->create();
@@ -69,10 +102,18 @@ class ProfileUpdateTest extends TestCase
             ->assertHasNoErrors()
             ->assertRedirect('/');
 
-        $this->assertNull($user->fresh());
-        $this->assertFalse(auth()->check());
+        $this->assertNull(
+            $user->fresh()
+        );
+
+        $this->assertFalse(
+            Auth::check()
+        );
     }
 
+    /**
+     * 确认错误 password 不能删除 account。
+     */
     public function test_correct_password_must_be_provided_to_delete_account(): void
     {
         $user = User::factory()->create();
@@ -83,8 +124,45 @@ class ProfileUpdateTest extends TestCase
             ->set('password', 'wrong-password')
             ->call('deleteUser');
 
-        $response->assertHasErrors(['password']);
+        $response->assertHasErrors([
+            'password',
+        ]);
 
-        $this->assertNotNull($user->fresh());
+        $this->assertNotNull(
+            $user->fresh()
+        );
+    }
+
+    /**
+     * 确认 Profile Livewire component 初次载入时，
+     * 会显示目前登录用户的 Name 和 Email。
+     */
+    public function test_profile_component_loads_the_authenticated_users_data(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Profile Test User',
+            'email' => 'profile-test@example.com',
+        ]);
+
+        $this->actingAs($user);
+
+        /*
+         * 这条测试验证 Profile.php 的 mount()：
+         *
+         * Auth user
+         *     ↓
+         * $profileName / $profileEmail
+         *     ↓
+         * Blade wire:model
+         */
+        Livewire::test(Profile::class)
+            ->assertSet(
+                'profileName',
+                'Profile Test User'
+            )
+            ->assertSet(
+                'profileEmail',
+                'profile-test@example.com'
+            );
     }
 }

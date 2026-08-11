@@ -28,8 +28,7 @@ class SubmitOverduePaymentRequest extends FormRequest
 
         if (is_string($reference)) {
             $this->merge([
-                'payment_reference' =>
-                    trim($reference),
+                'payment_reference' => trim($reference),
             ]);
         }
     }
@@ -51,17 +50,13 @@ class SubmitOverduePaymentRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'payment_reference.required' =>
-                'A payment reference is required.',
+            'payment_reference.required' => 'A payment reference is required.',
 
-            'payment_reference.min' =>
-                'The payment reference must contain at least 6 characters.',
+            'payment_reference.min' => 'The payment reference must contain at least 6 characters.',
 
-            'payment_reference.max' =>
-                'The payment reference cannot exceed 100 characters.',
+            'payment_reference.max' => 'The payment reference cannot exceed 100 characters.',
 
-            'payment_reference.regex' =>
-                'The payment reference may contain only letters, numbers, spaces, hyphens and underscores.',
+            'payment_reference.regex' => 'The payment reference may contain only letters, numbers, spaces, hyphens and underscores.',
         ];
     }
 }

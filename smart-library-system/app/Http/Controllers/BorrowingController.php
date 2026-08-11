@@ -74,8 +74,7 @@ class BorrowingController extends Controller
             'borrowings' => $borrowings,
             'availableBooks' => $availableBooks,
             'activeCopyCount' => $activeCopyCount,
-            'hasUnresolvedOverdue' =>
-                $hasUnresolvedOverdue,
+            'hasUnresolvedOverdue' => $hasUnresolvedOverdue,
         ]);
     }
 
@@ -203,7 +202,7 @@ class BorrowingController extends Controller
         $user = $request->user();
 
         if (! $user instanceof User) {
-            throw new AuthorizationException();
+            throw new AuthorizationException;
         }
 
         return $user;
@@ -227,12 +226,10 @@ class BorrowingController extends Controller
             Log::warning(
                 'Borrowing request rejected by a business rule.',
                 [
-                    'user_id' =>
-                        $request->user()
-                            ?->getAuthIdentifier(),
+                    'user_id' => $request->user()
+                        ?->getAuthIdentifier(),
 
-                    'reason' =>
-                        $exception->getMessage(),
+                    'reason' => $exception->getMessage(),
                 ]
             );
 
@@ -248,9 +245,8 @@ class BorrowingController extends Controller
                 [
                     'reference' => $reference,
 
-                    'user_id' =>
-                        $request->user()
-                            ?->getAuthIdentifier(),
+                    'user_id' => $request->user()
+                        ?->getAuthIdentifier(),
 
                     'exception' => $exception,
                 ]

@@ -2,17 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\States\Borrowing\BorrowedState;
 use App\States\Borrowing\BorrowingState;
 use App\States\Borrowing\CompletedState;
 use App\States\Borrowing\FeeUnpaidState;
 use App\States\Borrowing\OverdueState;
 use App\States\Borrowing\PaymentPendingState;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
 
 #[Fillable([
@@ -89,25 +89,19 @@ class Borrowing extends Model
     public function state(): BorrowingState
     {
         return match ($this->status) {
-            self::STATUS_BORROWED =>
-                new BorrowedState($this),
+            self::STATUS_BORROWED => new BorrowedState($this),
 
-            self::STATUS_OVERDUE =>
-                new OverdueState($this),
+            self::STATUS_OVERDUE => new OverdueState($this),
 
-            self::STATUS_FEE_UNPAID =>
-                new FeeUnpaidState($this),
+            self::STATUS_FEE_UNPAID => new FeeUnpaidState($this),
 
-            self::STATUS_PAYMENT_PENDING =>
-                new PaymentPendingState($this),
+            self::STATUS_PAYMENT_PENDING => new PaymentPendingState($this),
 
-            self::STATUS_COMPLETED =>
-                new CompletedState($this),
+            self::STATUS_COMPLETED => new CompletedState($this),
 
-            default =>
-                throw new LogicException(
-                    'Unknown borrowing state.'
-                ),
+            default => throw new LogicException(
+                'Unknown borrowing state.'
+            ),
         };
     }
 }

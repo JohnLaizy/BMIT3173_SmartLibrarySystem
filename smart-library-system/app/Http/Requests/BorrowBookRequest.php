@@ -41,14 +41,11 @@ class BorrowBookRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'book_id.required' =>
-                'Please select a book.',
+            'book_id.required' => 'Please select a book.',
 
-            'book_id.integer' =>
-                'The selected book is invalid.',
+            'book_id.integer' => 'The selected book is invalid.',
 
-            'book_id.exists' =>
-                'The selected book could not be found.',
+            'book_id.exists' => 'The selected book could not be found.',
         ];
     }
 }
