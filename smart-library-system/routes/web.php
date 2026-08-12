@@ -7,6 +7,7 @@ use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomDashboardController;
 use App\Http\Controllers\RoomMaintenanceController;
 use App\Http\Controllers\RoomReservationController;
+use App\Http\Controllers\BookController;
 use App\Models\Room;
 use Illuminate\Support\Facades\Route;
 
@@ -200,7 +201,19 @@ Route::middleware([
                 ]
             )->name('payment.reject');
         });
+
+       /*
+|--------------------------------------------------------------------------
+| Book Management
+|--------------------------------------------------------------------------
+*/
+
+Route::resource(
+    'books',
+    BookController::class
+);
 });
+
 
 /*
 |--------------------------------------------------------------------------
