@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Room;
+use App\Services\Booking\StandardBookingStrategy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -12,7 +13,9 @@ class BookingController extends Controller
     // View student's booking history
     public function index()
     {
-        $bookings = Booking::where('user_id', Auth::id())->with('room')->get();
+        $bookings = Booking::where('user_id', Auth::id())
+            ->with('room')
+            ->get();
 
         return view('bookings.index', compact('bookings'));
     }
@@ -30,18 +33,60 @@ class BookingController extends Controller
     {
         $rooms = collect();
 
-        if ($request->filled(['booking_date', 'start_time', 'end_time'])) {
+        if ($request->filled([
+            'booking_date',
+            'start_time',
+            'end_time',
+        ])) {
             $bookedRoomIds = Booking::where('booking_date', $request->booking_date)
                 ->where('status', 'confirmed')
                 ->where(function ($query) use ($request) {
-                    $query->where('start_time', '<', $request->end_time)->where('end_time', '>', $request->start_time);
+                    $query->where('start_time', '<', $request->end_time)
+                        ->where('end_time', '>', $request->start_time);
                 })
                 ->pluck('room_id');
 
-            $rooms = Room::where('status', 'available')->whereNotIn('id', $bookedRoomIds)->get();
+            $rooms = Room::where('status', 'available')
+                ->whereNotIn('id', $bookedRoomIds)
+                ->get();
         }
 
         return view('bookings.availability', compact('rooms'));
+    }
+
+    // Provide Web Service: return available rooms as JSON
+    public function apiAvailability(Request $request)
+    {
+        $request->validate([
+            'booking_date' => 'required|date',
+            'start_time' => 'required',
+            'end_time' => 'required|after:start_time',
+            'request_id' => 'required|string',
+        ]);
+
+        $bookedRoomIds = Booking::where('booking_date', $request->booking_date)
+            ->where('status', 'confirmed')
+            ->where(function ($query) use ($request) {
+                $query->where('start_time', '<', $request->end_time)
+                    ->where('end_time', '>', $request->start_time);
+            })
+            ->pluck('room_id');
+
+        $rooms = Room::where('status', 'available')
+            ->whereNotIn('id', $bookedRoomIds)
+            ->get([
+                'id',
+                'room_number',
+                'name',
+                'status',
+            ]);
+
+        return response()->json([
+            'status' => 'success',
+            'timestamp' => now()->toISOString(),
+            'request_id' => $request->request_id,
+            'available_rooms' => $rooms,
+        ]);
     }
 
     // Create booking
@@ -50,60 +95,52 @@ class BookingController extends Controller
         $request->validate(
             [
                 'room_id' => 'required',
-
                 'booking_date' => 'required|date',
-
                 'start_time' => 'required',
-
                 'end_time' => 'required|after:start_time',
             ],
             [
                 'end_time.after' => 'End time must be later than start time.',
-            ],
+            ]
         );
 
         if ($request->start_time >= $request->end_time) {
-            return back()->with('error', 'End time must be later than start time.');
+            return back()->with(
+                'error',
+                'End time must be later than start time.'
+            );
         }
 
-        // Prevent double booking
-        $existingBooking = Booking::where('room_id', $request->room_id)
+        // Strategy Pattern: check room availability
+        $strategy = new StandardBookingStrategy();
 
-            ->where('booking_date', $request->booking_date)
+        $isAvailable = $strategy->isRoomAvailable(
+            (int) $request->room_id,
+            $request->booking_date,
+            $request->start_time,
+            $request->end_time
+        );
 
-            ->where('status', 'confirmed')
-
-            ->where(function ($query) use ($request) {
-                $query
-                    ->where('start_time', '<', $request->end_time)
-
-                    ->where('end_time', '>', $request->start_time);
-            })
-
-            ->exists();
-
-        if ($existingBooking) {
+        if (!$isAvailable) {
             return redirect()
                 ->route('bookings.create')
-
-                ->with('error', 'This room is already booked during this time.');
+                ->with(
+                    'error',
+                    'This room is already booked during this time.'
+                );
         }
 
         Booking::create([
             'user_id' => Auth::id(),
-
             'room_id' => $request->room_id,
-
             'booking_date' => $request->booking_date,
-
             'start_time' => $request->start_time,
-
             'end_time' => $request->end_time,
-
             'status' => 'confirmed',
         ]);
 
-        return redirect('/bookings')->with('success', 'Room booked successfully');
+        return redirect('/bookings')
+            ->with('success', 'Room booked successfully');
     }
 
     // Show edit booking page
@@ -127,21 +164,18 @@ class BookingController extends Controller
 
         $request->validate([
             'booking_date' => 'required|date',
-
             'start_time' => 'required',
-
             'end_time' => 'required|after:start_time',
         ]);
 
         $booking->update([
             'booking_date' => $request->booking_date,
-
             'start_time' => $request->start_time,
-
             'end_time' => $request->end_time,
         ]);
 
-        return redirect('/bookings')->with('success', 'Booking updated successfully');
+        return redirect('/bookings')
+            ->with('success', 'Booking updated successfully');
     }
 
     // Cancel booking
@@ -156,6 +190,7 @@ class BookingController extends Controller
             'status' => 'cancelled',
         ]);
 
-        return back()->with('success', 'Booking cancelled successfully');
+        return back()
+            ->with('success', 'Booking cancelled successfully');
     }
 }
