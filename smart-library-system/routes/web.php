@@ -28,7 +28,6 @@ Route::get('/', function () {
         'availableRoomsCount',
         'totalRoomsCount'
     ));
-
 })->name('home');
 
 
@@ -66,7 +65,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'roomStats',
             'recentRooms'
         ));
-
     })->name('dashboard');
 
 
@@ -152,8 +150,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 '/{booking}/cancel',
                 [BookingController::class, 'cancel']
             )->name('cancel');
-
-
         });
 
 
@@ -181,8 +177,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 '/',
                 [BorrowingController::class, 'store']
             )
-            ->middleware('throttle:20,1')
-            ->name('store');
+                ->middleware('throttle:20,1')
+                ->name('store');
 
 
 
@@ -197,8 +193,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 '/{borrowing}/payment',
                 [BorrowingController::class, 'submitPayment']
             )
-            ->middleware('throttle:10,1')
-            ->name('payment.submit');
+                ->middleware('throttle:10,1')
+                ->name('payment.submit');
 
 
 
@@ -213,8 +209,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 '/{borrowing}/payment/reject',
                 [BorrowingController::class, 'rejectPayment']
             )->name('payment.reject');
-
-
         });
 
 
@@ -222,7 +216,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 
-    require __DIR__.'/settings.php';
-
-
+    require __DIR__ . '/settings.php';
 });
