@@ -23,13 +23,32 @@
 
 
 
-            {{-- Create Booking Button --}}
-            <flux:button href="{{ route('bookings.create') }}" variant="primary">
-                + Book Room
-            </flux:button>
+
+            {{-- Booking Actions --}}
+            <div class="flex gap-3">
+
+
+                {{-- Check Availability Button --}}
+                <flux:button href="{{ route('bookings.availability') }}" variant="outline">
+                    Check Availability
+                </flux:button>
+
+
+
+
+                {{-- Create Booking Button --}}
+                <flux:button href="{{ route('bookings.create') }}" variant="primary">
+                    + Book Room
+                </flux:button>
+
+
+            </div>
 
 
         </div>
+
+
+
 
 
 
@@ -43,6 +62,7 @@
 
             </div>
         @endif
+
 
 
 
@@ -111,6 +131,8 @@
 
 
 
+
+
                 <flux:table.rows>
 
 
@@ -118,9 +140,12 @@
                         <flux:table.row>
 
 
+
+
                             <flux:table.cell>
                                 {{ $booking->user->name }}
                             </flux:table.cell>
+
 
 
 
@@ -132,9 +157,11 @@
 
 
 
+
                             <flux:table.cell>
                                 {{ $booking->booking_date }}
                             </flux:table.cell>
+
 
 
 
@@ -163,31 +190,55 @@
 
 
 
+
+                            {{-- Action --}}
                             <flux:table.cell>
 
 
                                 @if ($booking->status == 'confirmed')
-                                    <form method="POST" action="/bookings/{{ $booking->id }}/cancel">
+                                    <div class="flex gap-2">
 
 
-                                        @csrf
-                                        @method('PATCH')
 
-
-                                        <flux:button type="submit" variant="danger">
-
-                                            Cancel
-
+                                        {{-- Edit --}}
+                                        <flux:button href="{{ route('bookings.edit', $booking->id) }}"
+                                            variant="primary">
+                                            Edit
                                         </flux:button>
 
 
-                                    </form>
+
+
+
+                                        {{-- Cancel --}}
+                                        <form method="POST" action="/bookings/{{ $booking->id }}/cancel">
+
+
+                                            @csrf
+                                            @method('PATCH')
+
+
+
+                                            <flux:button type="submit" variant="danger">
+
+                                                Cancel
+
+                                            </flux:button>
+
+
+                                        </form>
+
+
+
+                                    </div>
                                 @else
                                     -
                                 @endif
 
 
+
                             </flux:table.cell>
+
 
 
 
