@@ -1,15 +1,50 @@
 <?php
 
 use App\Http\Controllers\BookController;
+use App\Http\Controllers\RoomAvailabilityApiController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
-    // 公开查询接口
-    Route::get('/books', [BookController::class, 'index']);
-    Route::get('/books/{id}', [BookController::class, 'show']);
+    /*
+    |--------------------------------------------------------------------------
+    | Public Query APIs
+    |--------------------------------------------------------------------------
+    */
 
-    // 需要认证与权限的写入接口
+    Route::get(
+        '/books',
+        [BookController::class, 'index']
+    );
+
+    Route::get(
+        '/books/{id}',
+        [BookController::class, 'show']
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Room Availability Web Service
+    |--------------------------------------------------------------------------
+    |
+    | Provides available room information to other systems/modules.
+    |
+    */
+
+    Route::get(
+        '/rooms/availability',
+        [RoomAvailabilityApiController::class, 'index']
+    )->name('api.rooms.availability');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Protected APIs
+    |--------------------------------------------------------------------------
+    */
+
     Route::middleware(['auth:sanctum'])->group(function () {
-        Route::post('/books', [BookController::class, 'store']);
+        Route::post(
+            '/books',
+            [BookController::class, 'store']
+        );
     });
 });
