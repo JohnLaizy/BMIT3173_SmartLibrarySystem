@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreRoomReservationRequest;
+use App\Http\Requests\UpdateRoomReservationRequest;
 use App\Models\Room;
 use App\Models\RoomReservation;
 use App\Models\User;
@@ -217,14 +218,17 @@ class RoomReservationController extends Controller
                 'rooms' => $rooms,
                 'students' => $students,
 
-                'selectedRoomId' => $validated['room_id'] ?? null,
+                'selectedRoomId' =>
+                    $validated['room_id'] ?? null,
 
-                'defaultStart' => $chosenStart?->format(
-                    'Y-m-d\TH:i'
-                ) ?? '',
+                'defaultStart' =>
+                    $chosenStart?->format(
+                        'Y-m-d\TH:i'
+                    ) ?? '',
 
-                'defaultEnd' => $chosenStart?->addHour()
-                    ->format('Y-m-d\TH:i') ?? '',
+                'defaultEnd' =>
+                    $chosenStart?->addHour()
+                        ->format('Y-m-d\TH:i') ?? '',
             ]
         );
     }
@@ -248,15 +252,100 @@ class RoomReservationController extends Controller
             $request->validatedData()
         );
 
-        /*
-         * 保存成功后进入独立预约列表，
-         * 不再返回 Availability 页面。
-         */
         return redirect()
             ->route('room-reservations.index')
             ->with(
                 'success',
                 'Room reserved successfully.'
+            );
+    }
+
+    /**
+     * 显示修改预约页面。
+     */
+    public function edit(
+        Request $request,
+        RoomReservation $reservation
+    ): View {
+        Gate::authorize(
+            'update',
+            $reservation
+        );
+
+        $user = $request->user();
+
+        abort_unless(
+            $user instanceof User,
+            403
+        );
+
+        /*
+         * 只显示目前可预约的房间。
+         */
+        $rooms = Room::query()
+            ->where('status', 'available')
+            ->orderBy('room_number')
+            ->get();
+
+        /*
+         * Librarian 可以修改预约所属 Student。
+         * Student 只能修改自己的预约。
+         */
+        $students = $user->isLibrarian()
+            ? User::query()
+                ->where(
+                    'role',
+                    User::ROLE_STUDENT
+                )
+                ->orderBy('name')
+                ->get([
+                    'id',
+                    'name',
+                    'email',
+                ])
+            : collect();
+
+        $reservation->load([
+            'room',
+            'user',
+        ]);
+
+        return view(
+            'room-reservations.edit',
+            compact(
+                'reservation',
+                'rooms',
+                'students'
+            )
+        );
+    }
+
+    /**
+     * 更新预约。
+     */
+    public function update(
+        UpdateRoomReservationRequest $request,
+        RoomReservation $reservation,
+        RoomReservationService $reservationService
+    ): RedirectResponse {
+        $user = $request->user();
+
+        abort_unless(
+            $user instanceof User,
+            403
+        );
+
+        $reservationService->update(
+            $reservation,
+            $user,
+            $request->validatedData()
+        );
+
+        return redirect()
+            ->route('room-reservations.index')
+            ->with(
+                'success',
+                'Reservation updated successfully.'
             );
     }
 

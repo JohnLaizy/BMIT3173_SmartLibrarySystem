@@ -86,6 +86,7 @@ Route::middleware([
     | Room Reservations
     |--------------------------------------------------------------------------
     */
+
     Route::get(
         'room-reservations',
         [
@@ -109,6 +110,22 @@ Route::middleware([
             'store',
         ]
     )->name('room-reservations.store');
+
+    Route::get(
+        'room-reservations/{reservation}/edit',
+        [
+            RoomReservationController::class,
+            'edit',
+        ]
+    )->name('room-reservations.edit');
+
+    Route::patch(
+        'room-reservations/{reservation}',
+        [
+            RoomReservationController::class,
+            'update',
+        ]
+    )->name('room-reservations.update');
 
     Route::patch(
         'room-reservations/{reservation}/cancel',
@@ -202,18 +219,17 @@ Route::middleware([
             )->name('payment.reject');
         });
 
-       /*
-|--------------------------------------------------------------------------
-| Book Management
-|--------------------------------------------------------------------------
-*/
+    /*
+    |--------------------------------------------------------------------------
+    | Book Management
+    |--------------------------------------------------------------------------
+    */
 
-Route::resource(
-    'books',
-    BookController::class
-);
+    Route::resource(
+        'books',
+        BookController::class
+    );
 });
-
 
 /*
 |--------------------------------------------------------------------------

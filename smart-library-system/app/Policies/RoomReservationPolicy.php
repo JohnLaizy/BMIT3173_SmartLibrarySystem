@@ -27,6 +27,21 @@ class RoomReservationPolicy
             || $user->isLibrarian();
     }
 
+    public function update(
+        User $user,
+        RoomReservation $reservation
+    ): bool {
+        if (
+            $reservation->status !== RoomReservation::STATUS_CONFIRMED
+            || $reservation->ends_at->isPast()
+        ) {
+            return false;
+        }
+
+        return $user->isLibrarian()
+            || $reservation->user_id === $user->id;
+    }
+
     public function cancel(
         User $user,
         RoomReservation $reservation

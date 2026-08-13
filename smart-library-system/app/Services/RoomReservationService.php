@@ -135,6 +135,140 @@ class RoomReservationService
     }
 
     /**
+     * 更新房间预约。
+     *
+     * @param array{
+     *     room_id: int,
+     *     user_id: int|null,
+     *     purpose: string,
+     *     starts_at: string,
+     *     ends_at: string
+     * } $data
+     */
+    public function update(
+        RoomReservation $reservation,
+        User $actor,
+        array $data
+    ): RoomReservation {
+        return DB::transaction(
+            function () use (
+                $reservation,
+                $actor,
+                $data
+            ) {
+                /*
+                 * 锁定当前预约，避免同时被其他请求修改。
+                 */
+                $lockedReservation =
+                    RoomReservation::query()
+                        ->lockForUpdate()
+                        ->findOrFail($reservation->id);
+
+                /*
+                 * 只有 confirmed reservation
+                 * 才允许修改。
+                 */
+                if (
+                    $lockedReservation->status
+                    !== RoomReservation::STATUS_CONFIRMED
+                ) {
+                    throw ValidationException::withMessages([
+                        'reservation' => 'This reservation can no longer be updated.',
+                    ]);
+                }
+
+                /*
+                 * 锁定新的房间。
+                 */
+                $room = Room::query()
+                    ->whereKey($data['room_id'])
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                /*
+                 * Librarian 可以替 Student 修改预约。
+                 * Student 只能修改自己的预约。
+                 */
+                if ($actor->isLibrarian()) {
+                    if ($data['user_id'] === null) {
+                        throw ValidationException::withMessages([
+                            'user_id' => 'Select a student for this reservation.',
+                        ]);
+                    }
+
+                    $targetUserId = $data['user_id'];
+                } else {
+                    $targetUserId = $lockedReservation->user_id;
+                }
+
+                $targetUser = User::query()
+                    ->whereKey($targetUserId)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if (! $targetUser->isStudent()) {
+                    throw ValidationException::withMessages([
+                        'user_id' => 'Reservations can only be assigned to students.',
+                    ]);
+                }
+
+                $startsAt = CarbonImmutable::parse(
+                    $data['starts_at']
+                );
+
+                $endsAt = CarbonImmutable::parse(
+                    $data['ends_at']
+                );
+
+                /*
+                 * 重新验证预约时间。
+                 */
+                $this->validateTimeWindow(
+                    $startsAt,
+                    $endsAt
+                );
+
+                /*
+                 * 检查房间是否可用，
+                 * 但排除当前正在编辑的预约。
+                 */
+                $this->ensureRoomCanBeReserved(
+                    $room,
+                    $startsAt,
+                    $endsAt,
+                    $lockedReservation->id
+                );
+
+                /*
+                 * 检查 Student 是否有其他时间冲突，
+                 * 同样排除当前预约。
+                 */
+                $this->ensureUserIsFree(
+                    $targetUser,
+                    $startsAt,
+                    $endsAt,
+                    $lockedReservation->id
+                );
+
+                $lockedReservation->update([
+                    'room_id' => $room->id,
+                    'user_id' => $targetUser->id,
+                    'purpose' => $data['purpose'],
+                    'starts_at' => $startsAt,
+                    'ends_at' => $endsAt,
+                ]);
+
+                return $lockedReservation
+                    ->refresh()
+                    ->load([
+                        'room',
+                        'user',
+                    ]);
+            }
+        );
+    }
+
+    /**
      * 取消预约。
      */
     public function cancel(
@@ -302,11 +436,15 @@ class RoomReservationService
 
     /**
      * 检查房间是否可以预约。
+     *
+     * $exceptReservationId 用于 Update，
+     * 排除当前正在编辑的预约。
      */
     private function ensureRoomCanBeReserved(
         Room $room,
         CarbonImmutable $startsAt,
-        CarbonImmutable $endsAt
+        CarbonImmutable $endsAt,
+        ?int $exceptReservationId = null
     ): void {
         if ($room->status !== 'available') {
             throw ValidationException::withMessages([
@@ -335,7 +473,7 @@ class RoomReservationService
         }
 
         /*
-         * 检查房间是否已经被预约。
+         * 检查房间是否已经被其他预约占用。
          */
         $reservationConflict =
             RoomReservation::query()
@@ -343,6 +481,14 @@ class RoomReservationService
                 ->where(
                     'status',
                     RoomReservation::STATUS_CONFIRMED
+                )
+                ->when(
+                    $exceptReservationId !== null,
+                    fn ($query) => $query->where(
+                        'id',
+                        '!=',
+                        $exceptReservationId
+                    )
                 )
                 ->where('starts_at', '<', $endsAt)
                 ->where('ends_at', '>', $startsAt)
@@ -357,11 +503,15 @@ class RoomReservationService
 
     /**
      * 检查 Student 同一时间是否有其他预约。
+     *
+     * $exceptReservationId 用于 Update，
+     * 排除当前正在编辑的预约。
      */
     private function ensureUserIsFree(
         User $user,
         CarbonImmutable $startsAt,
-        CarbonImmutable $endsAt
+        CarbonImmutable $endsAt,
+        ?int $exceptReservationId = null
     ): void {
         $hasConflict =
             RoomReservation::query()
@@ -369,6 +519,14 @@ class RoomReservationService
                 ->where(
                     'status',
                     RoomReservation::STATUS_CONFIRMED
+                )
+                ->when(
+                    $exceptReservationId !== null,
+                    fn ($query) => $query->where(
+                        'id',
+                        '!=',
+                        $exceptReservationId
+                    )
                 )
                 ->where('starts_at', '<', $endsAt)
                 ->where('ends_at', '>', $startsAt)
