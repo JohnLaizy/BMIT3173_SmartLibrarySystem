@@ -15,4 +15,9 @@ return [
         'LIBRARY_OVERDUE_FEE_CENTS_PER_DAY',
         100
     ),
+
+    'reservation_hold_days' => (int) env(
+        'LIBRARY_RESERVATION_HOLD_DAYS',
+        2
+    ),
 ];

@@ -2,6 +2,7 @@
 ```powershell
 cd .\smart-library-system
 composer install
+php artisan optimize:clear
 npm ci --include=optional
 php artisan migrate
 composer run dev
