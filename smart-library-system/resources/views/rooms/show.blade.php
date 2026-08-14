@@ -13,7 +13,11 @@
     };
 @endphp
 
-    <div class="mx-auto w-full max-w-4xl">
+<div
+    data-page-transition
+    class="mx-auto flex w-full max-w-6xl flex-1
+           flex-col gap-8 px-2 sm:px-4"
+>
         <div class="mb-6 flex flex-col justify-between gap-4 sm:flex-row">
             <div>
                 <div class="flex items-center gap-3">

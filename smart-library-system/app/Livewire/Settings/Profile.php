@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Concerns\ProfileValidationRules;
+use App\Models\User;
 use Flux\Flux;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Support\Facades\Auth;
@@ -15,32 +16,42 @@ class Profile extends Component
 {
     use ProfileValidationRules;
 
-    public string $name = '';
+    public string $profileName = '';
 
-    public string $email = '';
+    public string $profileEmail = '';
 
     public string $phone = '';
 
     /**
-     * Mount the component.
+     * Load the current user's profile information.
      */
     public function mount(): void
     {
-        $this->name = Auth::user()->name;
-        $this->email = Auth::user()->email;
-        $this->phone = Auth::user()->phone ?? '';
+        $user = $this->authenticatedUser();
+
+        $this->profileName = $user->name;
+        $this->profileEmail = $user->email;
+        $this->phone = $user->phone ?? '';
     }
 
     /**
-     * Update the profile information for the currently authenticated user.
+     * Update the profile information for the current user.
      */
     public function updateProfileInformation(): void
     {
-        $user = Auth::user();
+        $user = $this->authenticatedUser();
 
-        $validated = $this->validate($this->profileRules($user->id));
+        $validated = $this->validate([
+            'profileName' => $this->nameRules(),
+            'profileEmail' => $this->emailRules($user->id),
+            'phone' => $this->phoneRules(),
+        ]);
 
-        $user->fill($validated);
+        $user->fill([
+            'name' => $validated['profileName'],
+            'email' => $validated['profileEmail'],
+            'phone' => $validated['phone'],
+        ]);
 
         if ($user->isDirty('email')) {
             $user->email_verified_at = null;
@@ -48,40 +59,75 @@ class Profile extends Component
 
         $user->save();
 
-        Flux::toast(variant: 'success', text: __('Profile updated.'));
+        Flux::toast(
+            variant: 'success',
+            text: __('Profile updated.')
+        );
     }
 
     /**
-     * Send an email verification notification to the current user.
+     * Send a new email verification notification.
      */
     public function resendVerificationNotification(): void
     {
-        $user = Auth::user();
+        $user = $this->authenticatedUser();
+
+        if (! $user instanceof MustVerifyEmail) {
+            return;
+        }
 
         if ($user->hasVerifiedEmail()) {
-            $this->redirectIntended(default: route('dashboard', absolute: false));
+            $this->redirectIntended(
+                default: route(
+                    'dashboard',
+                    absolute: false
+                )
+            );
 
             return;
         }
 
         $user->sendEmailVerificationNotification();
 
-        Flux::toast(text: __('A new verification link has been sent to your email address.'));
+        Flux::toast(
+            text: __(
+                'A new verification link has been sent to your email address.'
+            )
+        );
     }
 
     #[Computed]
     public function hasUnverifiedEmail(): bool
     {
-        $user = Auth::user();
+        $user = $this->authenticatedUser();
 
-        return $user instanceof MustVerifyEmail && ! $user->hasVerifiedEmail();
+        return $user instanceof MustVerifyEmail
+            && ! $user->hasVerifiedEmail();
     }
 
     #[Computed]
     public function showDeleteUser(): bool
     {
+        $user = $this->authenticatedUser();
+
+        return ! $user instanceof MustVerifyEmail
+            || $user->hasVerifiedEmail();
+    }
+
+    /**
+     * Return the currently authenticated User model.
+     */
+    private function authenticatedUser(): User
+    {
         $user = Auth::user();
 
-        return ! $user instanceof MustVerifyEmail || $user->hasVerifiedEmail();
+        if (! $user instanceof User) {
+            abort(
+                401,
+                'You must be logged in to manage your profile.'
+            );
+        }
+
+        return $user;
     }
 }
