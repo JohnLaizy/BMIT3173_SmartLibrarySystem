@@ -8,6 +8,7 @@ use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomDashboardController;
 use App\Http\Controllers\RoomMaintenanceController;
 use App\Http\Controllers\RoomReservationController;
+use App\Http\Controllers\BookController;
 use App\Models\Room;
 use Illuminate\Support\Facades\Route;
 
@@ -87,6 +88,7 @@ Route::middleware([
     | Room Reservations
     |--------------------------------------------------------------------------
     */
+
     Route::get(
         'room-reservations',
         [
@@ -110,6 +112,22 @@ Route::middleware([
             'store',
         ]
     )->name('room-reservations.store');
+
+    Route::get(
+        'room-reservations/{reservation}/edit',
+        [
+            RoomReservationController::class,
+            'edit',
+        ]
+    )->name('room-reservations.edit');
+
+    Route::patch(
+        'room-reservations/{reservation}',
+        [
+            RoomReservationController::class,
+            'update',
+        ]
+    )->name('room-reservations.update');
 
     Route::patch(
         'room-reservations/{reservation}/cancel',

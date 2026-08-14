@@ -87,14 +87,7 @@
             >
                 {{ __('Book Management') }}
             </flux:sidebar.item>
-        @else
-            <flux:sidebar.item
-                icon="book-open-text"
-                badge="Pending"
-                disabled
-            >
-                {{ __('Book Management') }}
-            </flux:sidebar.item>
+        
         @endif
 
         {{-- Borrow & Return --}}

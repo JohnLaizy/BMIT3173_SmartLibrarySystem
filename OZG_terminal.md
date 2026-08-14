@@ -1,6 +1,10 @@
 # Terminal 1
 cd .\smart-library-system
-php artisan serve
+php artisan serve --host=127.0.0.1 --port=8000
+Build:
+npm run build
+VS Code:
+PORTS → Forwarded Port 8000 → Public → Copy Forwarded Address
 
 # Terminal 2
 cd .\smart-library-system

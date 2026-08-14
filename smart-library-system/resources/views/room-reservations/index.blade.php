@@ -298,44 +298,96 @@
                                     </td>
 
                                     <td class="px-6 py-5 text-right">
-                                        @can('cancel', $reservation)
-                                            <form
-                                                method="POST"
-                                                action="{{ route(
-                                                    'room-reservations.cancel',
+                                        @php
+                                            $canUpdate = auth()
+                                                ->user()
+                                                ->can(
+                                                    'update',
                                                     $reservation
-                                                ) }}"
-                                                class="inline"
-                                                onsubmit="return confirm(
-                                                    'Cancel this reservation?'
-                                                )"
-                                            >
-                                                @csrf
-                                                @method('PATCH')
+                                                );
 
-                                                <button
-                                                    type="submit"
-                                                    class="min-h-10 rounded-xl
-                                                           border border-red-500/30
-                                                           bg-red-500/10 px-4
-                                                           font-semibold text-red-700
-                                                           transition-colors
-                                                           hover:bg-red-500/20
-                                                           focus:outline-none
-                                                           focus:ring-2
-                                                           focus:ring-red-500
-                                                           dark:text-red-300"
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </form>
+                                            $canCancel = auth()
+                                                ->user()
+                                                ->can(
+                                                    'cancel',
+                                                    $reservation
+                                                );
+                                        @endphp
+
+                                        @if ($canUpdate || $canCancel)
+                                            <div
+                                                class="flex items-center
+                                                       justify-end gap-2"
+                                            >
+                                                @if ($canUpdate)
+                                                    <a
+                                                        href="{{ route(
+                                                            'room-reservations.edit',
+                                                            $reservation
+                                                        ) }}"
+                                                        class="inline-flex min-h-10
+                                                               items-center
+                                                               justify-center
+                                                               rounded-xl
+                                                               border border-blue-500/30
+                                                               bg-blue-500/10 px-4
+                                                               font-semibold
+                                                               text-blue-700
+                                                               transition-colors
+                                                               hover:bg-blue-500/20
+                                                               focus:outline-none
+                                                               focus:ring-2
+                                                               focus:ring-blue-500
+                                                               dark:text-blue-300"
+                                                    >
+                                                        Edit
+                                                    </a>
+                                                @endif
+
+                                                @if ($canCancel)
+                                                    <form
+                                                        method="POST"
+                                                        action="{{ route(
+                                                            'room-reservations.cancel',
+                                                            $reservation
+                                                        ) }}"
+                                                        class="inline"
+                                                        onsubmit="return confirm(
+                                                            'Cancel this reservation?'
+                                                        )"
+                                                    >
+                                                        @csrf
+                                                        @method('PATCH')
+
+                                                        <button
+                                                            type="submit"
+                                                            class="min-h-10
+                                                                   rounded-xl
+                                                                   border
+                                                                   border-red-500/30
+                                                                   bg-red-500/10
+                                                                   px-4
+                                                                   font-semibold
+                                                                   text-red-700
+                                                                   transition-colors
+                                                                   hover:bg-red-500/20
+                                                                   focus:outline-none
+                                                                   focus:ring-2
+                                                                   focus:ring-red-500
+                                                                   dark:text-red-300"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            </div>
                                         @else
                                             <span
                                                 class="text-sm text-zinc-400"
                                             >
                                                 No actions
                                             </span>
-                                        @endcan
+                                        @endif
                                     </td>
                                 </tr>
                             @endforeach

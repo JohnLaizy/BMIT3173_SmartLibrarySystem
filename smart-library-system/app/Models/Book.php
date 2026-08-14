@@ -2,19 +2,31 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable([
-    'title',
-    'author',
-    'isbn',
-    'total_copies',
-    'available_copies',
-])]
 class Book extends Model
 {
+    use HasFactory;
+
+    protected $fillable = [
+        'isbn',
+        'title',
+        'author',
+        'category',
+        'type',
+        'total_copies',
+        'available_copies',
+        'cover_image_path',
+        'file_path',
+    ];
+
+    protected $casts = [
+        'total_copies' => 'integer',
+        'available_copies' => 'integer',
+    ];
+}
     //
     protected function casts(): array
     {

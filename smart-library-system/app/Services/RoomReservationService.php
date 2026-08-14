@@ -45,37 +45,23 @@ class RoomReservationService
                     ->firstOrFail();
 
                 /*
-                 * Librarian 替学生预约时，
-                 * 必须选择 Student。
+                 * Strategy Pattern
+                 *
+                 * 根据当前登录用户的角色选择不同的
+                 * Reservation Strategy。
+                 *
+                 * Student:
+                 * - 只能替自己预约。
+                 *
+                 * Librarian:
+                 * - 可以替指定的 Student 预约。
                  */
-                if (
-                    $actor->isLibrarian()
-                    && $data['user_id'] === null
-                ) {
-                    throw ValidationException::withMessages([
-                        'user_id' => 'Select a student for this reservation.',
-                    ]);
-                }
+                $strategy = $this->strategyFor($actor);
 
-                /*
-                 * Student 只能替自己预约。
-                 * Librarian 可以替选定的 Student 预约。
-                 */
-                $targetUserId =
-                    $actor->isLibrarian()
-                        ? $data['user_id']
-                        : $actor->id;
-
-                $targetUser = User::query()
-                    ->whereKey($targetUserId)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                if (! $targetUser->isStudent()) {
-                    throw ValidationException::withMessages([
-                        'user_id' => 'Reservations can only be created for students.',
-                    ]);
-                }
+                $targetUser = $strategy->resolveTargetUser(
+                    $actor,
+                    $data
+                );
 
                 /*
                  * Laravel 会根据 config/app.php 的时区
@@ -135,6 +121,157 @@ class RoomReservationService
     }
 
     /**
+     * 修改现有预约。
+     *
+     * @param array{
+     *     room_id: int,
+     *     user_id: int|null,
+     *     purpose: string,
+     *     starts_at: string,
+     *     ends_at: string
+     * } $data
+     */
+    public function update(
+        RoomReservation $reservation,
+        User $actor,
+        array $data
+    ): RoomReservation {
+        return DB::transaction(
+            function () use (
+                $reservation,
+                $actor,
+                $data
+            ) {
+                /*
+                 * 锁定当前预约。
+                 */
+                $lockedReservation =
+                    RoomReservation::query()
+                        ->lockForUpdate()
+                        ->findOrFail(
+                            $reservation->id
+                        );
+
+                /*
+                 * 只有仍然 Confirmed，
+                 * 而且尚未开始的预约才允许修改。
+                 */
+                if (
+                    $lockedReservation->status
+                        !== RoomReservation::STATUS_CONFIRMED
+                    || $lockedReservation->starts_at->isPast()
+                ) {
+                    throw ValidationException::withMessages([
+                        'reservation' =>
+                            'This reservation can no longer be updated.',
+                    ]);
+                }
+
+                /*
+                 * 锁定新的目标房间。
+                 */
+                $room = Room::query()
+                    ->whereKey($data['room_id'])
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                /*
+                 * Strategy Pattern
+                 *
+                 * Student 和 Librarian 使用不同策略
+                 * 决定预约所属的 Student。
+                 */
+                $strategy = $this->strategyFor($actor);
+
+                $targetUser = $strategy->resolveTargetUser(
+                    $actor,
+                    $data,
+                    $lockedReservation
+                );
+
+                $startsAt = CarbonImmutable::parse(
+                    $data['starts_at']
+                );
+
+                $endsAt = CarbonImmutable::parse(
+                    $data['ends_at']
+                );
+
+                /*
+                 * 检查预约时间。
+                 */
+                $this->validateTimeWindow(
+                    $startsAt,
+                    $endsAt
+                );
+
+                /*
+                 * 检查目标房间。
+                 *
+                 * Update 时忽略当前 Reservation，
+                 * 否则系统会认为预约和自己发生冲突。
+                 */
+                $this->ensureRoomCanBeReserved(
+                    $room,
+                    $startsAt,
+                    $endsAt,
+                    $lockedReservation->id
+                );
+
+                /*
+                 * 检查目标 Student 是否在同一时间
+                 * 已经拥有其他预约。
+                 *
+                 * 同样忽略当前 Reservation。
+                 */
+                $this->ensureUserIsFree(
+                    $targetUser,
+                    $startsAt,
+                    $endsAt,
+                    $lockedReservation->id
+                );
+
+                $lockedReservation->update([
+                    'room_id' => $room->id,
+                    'user_id' => $targetUser->id,
+                    'purpose' => $data['purpose'],
+                    'starts_at' => $startsAt,
+                    'ends_at' => $endsAt,
+                ]);
+
+                return $lockedReservation
+                    ->refresh()
+                    ->load([
+                        'room',
+                        'user',
+                    ]);
+            }
+        );
+    }
+
+    /**
+     * 根据用户角色选择 Reservation Strategy。
+     *
+     * 这是 Strategy Pattern 的 Context Selection。
+     */
+    private function strategyFor(
+        User $actor
+    ): RoomReservationStrategy {
+        if ($actor->isLibrarian()) {
+            return new LibrarianRoomReservationStrategy();
+        }
+
+        if ($actor->isStudent()) {
+            return new StudentRoomReservationStrategy();
+        }
+
+        throw ValidationException::withMessages([
+            'user' =>
+                'This user is not allowed to make room reservations.',
+        ]);
+    }
+
+    /**
      * 取消预约。
      */
     public function cancel(
@@ -146,16 +283,20 @@ class RoomReservationService
                 $lockedReservation =
                     RoomReservation::query()
                         ->lockForUpdate()
-                        ->findOrFail($reservation->id);
+                        ->findOrFail(
+                            $reservation->id
+                        );
 
                 if (! $lockedReservation->canBeCancelled()) {
                     throw ValidationException::withMessages([
-                        'reservation' => 'This reservation can no longer be cancelled.',
+                        'reservation' =>
+                            'This reservation can no longer be cancelled.',
                     ]);
                 }
 
                 $lockedReservation->update([
-                    'status' => RoomReservation::STATUS_CANCELLED,
+                    'status' =>
+                        RoomReservation::STATUS_CANCELLED,
 
                     'cancelled_at' => now(),
 
@@ -183,7 +324,8 @@ class RoomReservationService
             || $endsAt->lessThanOrEqualTo($startsAt)
         ) {
             throw ValidationException::withMessages([
-                'starts_at' => 'Select a future reservation time.',
+                'starts_at' =>
+                    'Select a future reservation time.',
             ]);
         }
 
@@ -203,7 +345,8 @@ class RoomReservationService
             )
         ) {
             throw ValidationException::withMessages([
-                'starts_at' => 'Reservation times must use 30-minute intervals.',
+                'starts_at' =>
+                    'Reservation times must use 30-minute intervals.',
             ]);
         }
 
@@ -224,10 +367,14 @@ class RoomReservationService
         );
 
         $openingAt =
-            $librarySetting->openingAt($businessDate);
+            $librarySetting->openingAt(
+                $businessDate
+            );
 
         $closingAt =
-            $librarySetting->closingAt($businessDate);
+            $librarySetting->closingAt(
+                $businessDate
+            );
 
         /*
          * 开始和结束时间都必须在同一个
@@ -249,7 +396,8 @@ class RoomReservationService
                     : '';
 
             throw ValidationException::withMessages([
-                'starts_at' => "Reservations are available from {$openingLabel} ".
+                'starts_at' =>
+                    "Reservations are available from {$openingLabel} ".
                     "to {$closingLabel}{$nextDayLabel}.",
             ]);
         }
@@ -262,7 +410,8 @@ class RoomReservationService
             > self::MAX_DURATION_MINUTES
         ) {
             throw ValidationException::withMessages([
-                'ends_at' => 'A reservation cannot be longer than 4 hours.',
+                'ends_at' =>
+                    'A reservation cannot be longer than 4 hours.',
             ]);
         }
     }
@@ -302,15 +451,20 @@ class RoomReservationService
 
     /**
      * 检查房间是否可以预约。
+     *
+     * Update 时可以传入 ignoredReservationId，
+     * 让系统忽略正在修改的预约本身。
      */
     private function ensureRoomCanBeReserved(
         Room $room,
         CarbonImmutable $startsAt,
-        CarbonImmutable $endsAt
+        CarbonImmutable $endsAt,
+        ?int $ignoredReservationId = null
     ): void {
         if ($room->status !== 'available') {
             throw ValidationException::withMessages([
-                'room_id' => 'This room is currently unavailable for reservation.',
+                'room_id' =>
+                    'This room is currently unavailable for reservation.',
             ]);
         }
 
@@ -319,64 +473,126 @@ class RoomReservationService
          */
         $maintenanceConflict =
             RoomMaintenance::query()
-                ->where('room_id', $room->id)
-                ->whereIn('status', [
-                    RoomMaintenance::STATUS_SCHEDULED,
-                    RoomMaintenance::STATUS_IN_PROGRESS,
-                ])
-                ->where('starts_at', '<', $endsAt)
-                ->where('ends_at', '>', $startsAt)
+                ->where(
+                    'room_id',
+                    $room->id
+                )
+                ->whereIn(
+                    'status',
+                    [
+                        RoomMaintenance::STATUS_SCHEDULED,
+                        RoomMaintenance::STATUS_IN_PROGRESS,
+                    ]
+                )
+                ->where(
+                    'starts_at',
+                    '<',
+                    $endsAt
+                )
+                ->where(
+                    'ends_at',
+                    '>',
+                    $startsAt
+                )
                 ->exists();
 
         if ($maintenanceConflict) {
             throw ValidationException::withMessages([
-                'room_id' => 'The selected time overlaps room maintenance.',
+                'room_id' =>
+                    'The selected time overlaps room maintenance.',
             ]);
         }
 
         /*
-         * 检查房间是否已经被预约。
+         * 检查房间是否已经被其他预约占用。
          */
-        $reservationConflict =
+        $reservationConflictQuery =
             RoomReservation::query()
-                ->where('room_id', $room->id)
+                ->where(
+                    'room_id',
+                    $room->id
+                )
                 ->where(
                     'status',
                     RoomReservation::STATUS_CONFIRMED
                 )
-                ->where('starts_at', '<', $endsAt)
-                ->where('ends_at', '>', $startsAt)
-                ->exists();
+                ->where(
+                    'starts_at',
+                    '<',
+                    $endsAt
+                )
+                ->where(
+                    'ends_at',
+                    '>',
+                    $startsAt
+                );
 
-        if ($reservationConflict) {
+        /*
+         * Update 时排除预约本身。
+         */
+        if ($ignoredReservationId !== null) {
+            $reservationConflictQuery->where(
+                'id',
+                '!=',
+                $ignoredReservationId
+            );
+        }
+
+        if ($reservationConflictQuery->exists()) {
             throw ValidationException::withMessages([
-                'room_id' => 'The selected room has already been reserved.',
+                'room_id' =>
+                    'The selected room has already been reserved.',
             ]);
         }
     }
 
     /**
      * 检查 Student 同一时间是否有其他预约。
+     *
+     * Update 时可以忽略当前预约本身。
      */
     private function ensureUserIsFree(
         User $user,
         CarbonImmutable $startsAt,
-        CarbonImmutable $endsAt
+        CarbonImmutable $endsAt,
+        ?int $ignoredReservationId = null
     ): void {
-        $hasConflict =
+        $conflictQuery =
             RoomReservation::query()
-                ->where('user_id', $user->id)
+                ->where(
+                    'user_id',
+                    $user->id
+                )
                 ->where(
                     'status',
                     RoomReservation::STATUS_CONFIRMED
                 )
-                ->where('starts_at', '<', $endsAt)
-                ->where('ends_at', '>', $startsAt)
-                ->exists();
+                ->where(
+                    'starts_at',
+                    '<',
+                    $endsAt
+                )
+                ->where(
+                    'ends_at',
+                    '>',
+                    $startsAt
+                );
 
-        if ($hasConflict) {
+        /*
+         * Update 时排除当前预约。
+         */
+        if ($ignoredReservationId !== null) {
+            $conflictQuery->where(
+                'id',
+                '!=',
+                $ignoredReservationId
+            );
+        }
+
+        if ($conflictQuery->exists()) {
             throw ValidationException::withMessages([
-                'user_id' => 'The student already has a reservation at this time.',
+                'user_id' =>
+                    'The student already has a reservation at this time.',
             ]);
         }
     }

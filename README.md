@@ -115,7 +115,8 @@ Run:
 composer install
 ```
 
-Use `composer install`, not `composer update`, because `composer install` uses the package versions recorded in:
+Use `composer install`, not `composer update`, because `composer install` uses the package versions recorded
+ in:
 
 ```text
 composer.lock
