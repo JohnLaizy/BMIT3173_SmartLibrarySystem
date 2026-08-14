@@ -12,9 +12,67 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\View\View;
 
 class BookReservationController extends Controller
 {
+    public function index(
+        Request $request,
+        BookReservationService $service
+    ): View {
+        $user = $this->authenticatedUser($request);
+
+        Gate::authorize(
+            'viewAny',
+            BookReservation::class
+        );
+
+        $service->expireApprovedReservations();
+
+        $reservationsQuery =
+            BookReservation::query()
+                ->with([
+                    'book',
+                    'student',
+                    'reviewer',
+                ])
+                ->latest('requested_at');
+
+        if ($user->isStudent()) {
+            $reservationsQuery->where(
+                'user_id',
+                $user->id
+            );
+        }
+
+        $reservations = $reservationsQuery
+            ->paginate(10);
+
+        $books = $user->isStudent()
+            ? Book::query()
+                ->orderBy('title')
+                ->limit(100)
+                ->get()
+            : collect();
+
+        $activeReservationBookIds =
+            $user->isStudent()
+                ? BookReservation::query()
+                    ->where('user_id', $user->id)
+                    ->active()
+                    ->pluck('book_id')
+                : collect();
+
+        return view(
+            'book-reservations.index',
+            [
+                'reservations' => $reservations,
+                'books' => $books,
+                'activeReservationBookIds' =>
+                    $activeReservationBookIds,
+            ]
+        );
+    }
     public function store(
         Request $request,
         BookReservationService $service
@@ -140,5 +198,23 @@ class BookReservationController extends Controller
                     $exception->getMessage()
                 );
         }
+    }
+
+    public function collect(
+        Request $request,
+        BookReservation $reservation,
+        BookReservationService $service
+    ): RedirectResponse {
+        $user = $this->authenticatedUser($request);
+
+        Gate::authorize('collect', $reservation);
+
+        return $this->performAction(
+            fn () => $service->collect(
+                $user,
+                $reservation
+            ),
+            'Reservation collected and borrowing created.'
+        );
     }
 }

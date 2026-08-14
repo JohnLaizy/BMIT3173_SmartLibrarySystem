@@ -9,9 +9,16 @@ use App\Models\Borrowing;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\View\View;
 
 class BookReservationService
 {
+
+    public function __construct(
+        private readonly BorrowingService $borrowings
+    ) {
+    }
+
     public function request(
         User $student,
         Book $book
@@ -296,5 +303,88 @@ class BookReservationService
                 BookReservation::STATUS_EXPIRED,
             'updated_at' => now(),
         ]);
+    }
+
+    public function collect(
+        User $librarian,
+        BookReservation $reservation
+    ): Borrowing {
+        if (! $librarian->isLibrarian()) {
+            throw BorrowingRuleViolation::because(
+                'Only librarians may process reservation collection.'
+            );
+        }
+
+        return DB::transaction(
+            function () use (
+                $librarian,
+                $reservation
+            ): Borrowing {
+                $lockedReservation =
+                    BookReservation::query()
+                        ->lockForUpdate()
+                        ->findOrFail($reservation->id);
+
+                if (
+                    $lockedReservation->status !==
+                        BookReservation::STATUS_APPROVED
+                    || $lockedReservation->expires_at === null
+                    || $lockedReservation->expires_at
+                        ->isPast()
+                ) {
+                    if (
+                        $lockedReservation->status ===
+                            BookReservation::STATUS_APPROVED
+                    ) {
+                        $lockedReservation->update([
+                            'status' =>
+                                BookReservation::STATUS_EXPIRED,
+                        ]);
+                    }
+
+                    throw BorrowingRuleViolation::because(
+                        'This reservation has expired or is no longer approved.'
+                    );
+                }
+
+                $student = User::query()
+                    ->lockForUpdate()
+                    ->findOrFail(
+                        $lockedReservation->user_id
+                    );
+
+                $book = Book::query()
+                    ->lockForUpdate()
+                    ->findOrFail(
+                        $lockedReservation->book_id
+                    );
+
+                $borrowing = $this->borrowings->borrow(
+                    $student,
+                    $book,
+                    $lockedReservation
+                );
+
+                $lockedReservation->update([
+                    'status' =>
+                        BookReservation::STATUS_COLLECTED,
+                    'collected_at' => now(),
+                    'expires_at' => null,
+                ]);
+
+                Log::info(
+                    'Book reservation collected.',
+                    [
+                        'reservation_id' =>
+                            $lockedReservation->id,
+                        'borrowing_id' => $borrowing->id,
+                        'processed_by' => $librarian->id,
+                    ]
+                );
+
+                return $borrowing;
+            },
+            attempts: 3
+        );
     }
 }

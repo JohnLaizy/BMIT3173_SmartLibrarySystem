@@ -216,6 +216,22 @@ Route::middleware([
         Route::prefix('book-reservations')
             ->name('book-reservations.')
             ->group(function () {
+                Route::get(
+                    '/',
+                    [
+                        BookReservationController::class,
+                        'index',
+                    ]
+                )->name('index');
+
+                Route::patch(
+                    '/{reservation}/collect',
+                    [
+                        BookReservationController::class,
+                        'collect',
+                    ]
+                )->name('collect');
+
                 Route::post(
                     '/',
                     [

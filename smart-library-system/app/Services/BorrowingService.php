@@ -118,9 +118,32 @@ class BorrowingService
                     );
                 }
 
-                if ($lockedBook->available_copies < 1) {
+                $approvedHolds = BookReservation::query()
+                    ->where('book_id', $lockedBook->id)
+                    ->where(
+                        'status',
+                        BookReservation::STATUS_APPROVED
+                    )
+                    ->where('expires_at', '>', now())
+                    ->when(
+                        $lockedReservation !== null,
+                        fn ($query) => $query->where(
+                            'id',
+                            '!=',
+                            $lockedReservation->id
+                        )
+                    )
+                    ->lockForUpdate()
+                    ->count();
+
+                if (
+                    $lockedBook->available_copies
+                    <= $approvedHolds
+                ) {
                     throw BorrowingRuleViolation::because(
-                        'This book currently has no available copies.'
+                        $lockedReservation
+                            ? 'No copy is available for this reservation.'
+                            : 'The remaining copies are reserved for other students.'
                     );
                 }
 

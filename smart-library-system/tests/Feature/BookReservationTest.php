@@ -158,4 +158,115 @@ class BookReservationTest extends TestCase
             'available_copies' => 2,
         ]);
     }
+
+    public function test_librarian_can_collect_approved_reservation(): void
+    {
+        $librarian = User::factory()->create([
+            'role' => User::ROLE_LIBRARIAN,
+        ]);
+
+        $student = User::factory()->create([
+            'role' => User::ROLE_STUDENT,
+        ]);
+
+        $book = $this->createBook();
+
+        $reservation =
+            BookReservation::query()->create([
+                'user_id' => $student->id,
+                'book_id' => $book->id,
+                'status' =>
+                    BookReservation::STATUS_APPROVED,
+                'requested_at' => now()->subDay(),
+                'reviewed_at' => now(),
+                'reviewed_by' => $librarian->id,
+                'expires_at' => now()->addDays(2),
+            ]);
+
+        $this
+            ->actingAs($librarian)
+            ->patch(
+                route(
+                    'book-reservations.collect',
+                    $reservation
+                )
+            )
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $reservation->refresh();
+        $book->refresh();
+
+        $this->assertSame(
+            BookReservation::STATUS_COLLECTED,
+            $reservation->status
+        );
+
+        $this->assertNotNull(
+            $reservation->collected_at
+        );
+
+        $this->assertDatabaseHas('borrowings', [
+            'user_id' => $student->id,
+            'book_id' => $book->id,
+            'status' => 'borrowed',
+        ]);
+
+        $this->assertSame(
+            1,
+            $book->available_copies
+        );
+    }
+
+    public function test_approved_hold_protects_last_copy(): void
+    {
+        $librarian = User::factory()->create([
+            'role' => User::ROLE_LIBRARIAN,
+        ]);
+
+        $reservedStudent = User::factory()->create([
+            'role' => User::ROLE_STUDENT,
+        ]);
+
+        $otherStudent = User::factory()->create([
+            'role' => User::ROLE_STUDENT,
+        ]);
+
+        $book = Book::query()->create([
+            'title' => 'The Pragmatic Programmer',
+            'author' => 'Andrew Hunt',
+            'isbn' => fake()->unique()->isbn13(),
+            'total_copies' => 1,
+            'available_copies' => 1,
+        ]);
+
+        BookReservation::query()->create([
+            'user_id' => $reservedStudent->id,
+            'book_id' => $book->id,
+            'status' => BookReservation::STATUS_APPROVED,
+            'requested_at' => now()->subDay(),
+            'reviewed_at' => now(),
+            'reviewed_by' => $librarian->id,
+            'expires_at' => now()->addDays(2),
+        ]);
+
+        $this
+            ->actingAs($otherStudent)
+            ->post(
+                route('borrowings.store'),
+                ['book_id' => $book->id]
+            )
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseMissing('borrowings', [
+            'user_id' => $otherStudent->id,
+            'book_id' => $book->id,
+        ]);
+
+        $this->assertSame(
+            1,
+            $book->fresh()->available_copies
+        );
+    }
 }

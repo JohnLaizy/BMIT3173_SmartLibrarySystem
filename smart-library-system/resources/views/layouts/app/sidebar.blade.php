@@ -104,6 +104,15 @@
             >
                 {{ __('Borrow & Return') }}
             </flux:sidebar.item>
+
+                <flux:sidebar.item
+                icon="bookmark-square"
+                :href="route('book-reservations.index')"
+                :current="request()->routeIs('book-reservations.*')"
+                wire:navigate
+            >
+                {{ __('Book Reservations') }}
+            </flux:sidebar.item>
         @endif
 
         {{-- 只有 Librarian 可以管理用户 --}}
