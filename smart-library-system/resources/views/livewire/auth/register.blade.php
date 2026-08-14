@@ -30,6 +30,21 @@
                 placeholder="email@example.com"
             />
 
+
+
+
+            <!-- Phone Number -->
+            <flux:input
+                name="phone"
+                :label="__('Phone number')"
+                :value="old('phone')"
+                type="tel"
+                required
+                autocomplete="tel"
+                placeholder="012-3456789"
+            />
+
+
             <!-- Password -->
             <flux:input
                 name="password"
