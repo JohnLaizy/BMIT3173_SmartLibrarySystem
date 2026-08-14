@@ -1,6 +1,5 @@
 # Remember to do when pulling (not first time)
 ```powershell
-cd .\smart-library-system
 composer install
 php artisan optimize:clear
 npm ci --include=optional
