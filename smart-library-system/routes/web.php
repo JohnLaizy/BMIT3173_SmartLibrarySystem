@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BookReservationController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\LibrarySettingController;
 use App\Http\Controllers\RoomAvailabilityController;
@@ -8,16 +9,13 @@ use App\Http\Controllers\RoomDashboardController;
 use App\Http\Controllers\RoomMaintenanceController;
 use App\Http\Controllers\RoomReservationController;
 use App\Models\Room;
-use App\Http\Controllers\BookingController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\BookReservationController;
 
 /*
 |--------------------------------------------------------------------------
 | Welcome Page
 |--------------------------------------------------------------------------
 */
-
 
 Route::get('/', function () {
 
@@ -26,14 +24,11 @@ Route::get('/', function () {
         ->limit(3)
         ->get();
 
-
     $availableRoomsCount = Room::query()
         ->where('status', 'available')
         ->count();
 
-
     $totalRoomsCount = Room::query()->count();
-
 
     return view('welcome', compact(
         'rooms',
@@ -41,11 +36,6 @@ Route::get('/', function () {
         'totalRoomsCount',
     ));
 })->name('home');
-
-
-
-
-
 
 /*
 |--------------------------------------------------------------------------
@@ -135,11 +125,6 @@ Route::middleware([
     |--------------------------------------------------------------------------
     */
 
-
-
-
-
-
     // Room Management
     Route::resource(
         'rooms',
@@ -167,7 +152,6 @@ Route::middleware([
         ->name('borrowings.')
         ->group(function () {
 
-
             Route::get(
                 '/',
                 [
@@ -175,8 +159,6 @@ Route::middleware([
                     'index',
                 ]
             )->name('index');
-
-
 
             Route::post(
                 '/',
@@ -188,8 +170,6 @@ Route::middleware([
                 ->middleware('throttle:20,1')
                 ->name('store');
 
-
-
             Route::patch(
                 '/{borrowing}/return',
                 [
@@ -197,8 +177,6 @@ Route::middleware([
                     'returnCopy',
                 ]
             )->name('return');
-
-
 
             Route::post(
                 '/{borrowing}/payment',
@@ -210,8 +188,6 @@ Route::middleware([
                 ->middleware('throttle:10,1')
                 ->name('payment.submit');
 
-
-
             Route::patch(
                 '/{borrowing}/payment/approve',
                 [
@@ -219,8 +195,6 @@ Route::middleware([
                     'approvePayment',
                 ]
             )->name('payment.approve');
-
-
 
             Route::patch(
                 '/{borrowing}/payment/reject',
@@ -231,70 +205,70 @@ Route::middleware([
             )->name('payment.reject');
         });
 
-        Route::patch(
-            'books/{book}/copies',
-            [
-                BorrowingController::class,
-                'updateCopyQuantity',
-            ]
-        )
-            ->middleware('throttle:20,1')
-            ->name('books.copies.update');
+    Route::patch(
+        'books/{book}/copies',
+        [
+            BorrowingController::class,
+            'updateCopyQuantity',
+        ]
+    )
+        ->middleware('throttle:20,1')
+        ->name('books.copies.update');
 
-        //BookReservationController
-        Route::prefix('book-reservations')
-            ->name('book-reservations.')
-            ->group(function () {
-                Route::get(
-                    '/',
-                    [
-                        BookReservationController::class,
-                        'index',
-                    ]
-                )->name('index');
+    // BookReservationController
+    Route::prefix('book-reservations')
+        ->name('book-reservations.')
+        ->group(function () {
+            Route::get(
+                '/',
+                [
+                    BookReservationController::class,
+                    'index',
+                ]
+            )->name('index');
 
-                Route::patch(
-                    '/{reservation}/collect',
-                    [
-                        BookReservationController::class,
-                        'collect',
-                    ]
-                )->name('collect');
+            Route::patch(
+                '/{reservation}/collect',
+                [
+                    BookReservationController::class,
+                    'collect',
+                ]
+            )->name('collect');
 
-                Route::post(
-                    '/',
-                    [
-                        BookReservationController::class,
-                        'store',
-                    ]
-                )
-                    ->middleware('throttle:10,1')
-                    ->name('store');
+            Route::post(
+                '/',
+                [
+                    BookReservationController::class,
+                    'store',
+                ]
+            )
+                ->middleware('throttle:10,1')
+                ->name('store');
 
-                Route::patch(
-                    '/{reservation}/approve',
-                    [
-                        BookReservationController::class,
-                        'approve',
-                    ]
-                )->name('approve');
+            Route::patch(
+                '/{reservation}/approve',
+                [
+                    BookReservationController::class,
+                    'approve',
+                ]
+            )->name('approve');
 
-                Route::patch(
-                    '/{reservation}/reject',
-                    [
-                        BookReservationController::class,
-                        'reject',
-                    ]
-                )->name('reject');
+            Route::patch(
+                '/{reservation}/reject',
+                [
+                    BookReservationController::class,
+                    'reject',
+                ]
+            )->name('reject');
 
-                Route::patch(
-                    '/{reservation}/cancel',
-                    [
-                        BookReservationController::class,
-                        'cancel',
-                    ]
-                )->name('cancel');
-            });
+            Route::patch(
+                '/{reservation}/cancel',
+                [
+                    BookReservationController::class,
+                    'cancel',
+                ]
+            )->name('cancel');
+        });
 });
 
 /*
