@@ -1,52 +1,55 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        @include('partials.head')
-    </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
-            <flux:sidebar.header>
-                <x-app-logo :sidebar="true" href="{{ route('home') }}" wire:navigate.hover />
-                <flux:sidebar.collapse class="lg:hidden" />
-            </flux:sidebar.header>
 
-   <flux:sidebar.nav>
-    {{-- 所有已登录用户都可以使用 --}}
-    <flux:sidebar.group
-        :heading="__('Platform')"
-        class="grid"
-    >
-        <flux:sidebar.item
-            icon="home"
-            :href="route('dashboard')"
-            :current="request()->routeIs('dashboard')"
-            wire:navigate
-        >
-            {{ __('Dashboard') }}
-        </flux:sidebar.item>
+<head>
+    @include('partials.head')
+</head>
 
-        <flux:sidebar.item
-            icon="calendar-days"
-            :href="route('room-availability.index')"
-            :current="request()->routeIs('room-availability.*')"
-            wire:navigate
-        >
-            {{ __('Room Availability') }}
-        </flux:sidebar.item>
+<body class="min-h-screen bg-white dark:bg-zinc-800">
+    <flux:sidebar sticky collapsible="mobile"
+        class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+        <flux:sidebar.header>
+            <x-app-logo :sidebar="true" href="{{ route('home') }}" wire:navigate.hover />
+            <flux:sidebar.collapse class="lg:hidden" />
+        </flux:sidebar.header>
 
-        <flux:sidebar.item
-            icon="bookmark-square"
-            :href="route('room-reservations.index')"
-            :current="request()->routeIs('room-reservations.*')"
-            wire:navigate
-        >
-            @if (auth()->user()->isLibrarian())
-                {{ __('Reservations') }}
-            @else
-                {{ __('My Reservations') }}
-            @endif
-        </flux:sidebar.item>
-    </flux:sidebar.group>
+            <flux:sidebar.nav>
+                <!-- Main navigation -->
+                <flux:sidebar.group
+                    :heading="__('Platform')"
+                    class="grid"
+                >
+                    <flux:sidebar.item
+                        icon="home"
+                        :href="route('dashboard')"
+                        :current="request()->routeIs('dashboard')"
+                        wire:navigate
+                    >
+                        {{ __('Dashboard') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="calendar-days"
+                        :href="route('room-availability.index')"
+                        :current="request()->routeIs('room-availability.*')"
+                        wire:navigate
+                    >
+                        {{ __('Room Availability') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="bookmark-square"
+                        :href="route('room-reservations.index')"
+                        :current="request()->routeIs('room-reservations.*')"
+                        wire:navigate
+                    >
+                        @if (auth()->user()->isLibrarian())
+                            {{ __('Reservations') }}
+                        @else
+                            {{ __('My Reservations') }}
+                        @endif
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
 
     {{-- 系统管理功能 --}}
     <flux:sidebar.group
@@ -97,6 +100,15 @@
             >
                 {{ __('Borrow & Return') }}
             </flux:sidebar.item>
+
+                <flux:sidebar.item
+                icon="bookmark-square"
+                :href="route('book-reservations.index')"
+                :current="request()->routeIs('book-reservations.*')"
+                wire:navigate
+            >
+                {{ __('Book Reservations') }}
+            </flux:sidebar.item>
         @endif
 
         {{-- 只有 Librarian 可以管理用户 --}}
@@ -124,18 +136,20 @@
 </flux:sidebar.nav>
             <flux:spacer />
 
-            <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    {{ __('Repository') }}
-                </flux:sidebar.item>
+        <flux:sidebar.nav>
+            <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit"
+                target="_blank">
+                {{ __('Repository') }}
+            </flux:sidebar.item>
 
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
-                </flux:sidebar.item>
-            </flux:sidebar.nav>
+            <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire"
+                target="_blank">
+                {{ __('Documentation') }}
+            </flux:sidebar.item>
+        </flux:sidebar.nav>
 
-            <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
-        </flux:sidebar>
+        <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
+    </flux:sidebar>
 
         <!-- Mobile User Menu -->
 <flux:header class="relative lg:hidden">
@@ -332,24 +346,21 @@
                     icon-trailing="chevron-down"
                 />
 
-                <flux:menu>
-                    <flux:menu.radio.group>
-                        <div class="p-0 text-sm font-normal">
-                            <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
-                                <flux:avatar
-                                    :name="auth()->user()->name"
-                                    :initials="auth()->user()->initials()"
-                                />
+            <flux:menu>
+                <flux:menu.radio.group>
+                    <div class="p-0 text-sm font-normal">
+                        <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
+                            <flux:avatar :name="auth()->user()->name" :initials="auth()->user()->initials()" />
 
-                                <div class="grid flex-1 text-start text-sm leading-tight">
-                                    <flux:heading class="truncate">{{ auth()->user()->name }}</flux:heading>
-                                    <flux:text class="truncate">{{ auth()->user()->email }}</flux:text>
-                                </div>
+                            <div class="grid flex-1 text-start text-sm leading-tight">
+                                <flux:heading class="truncate">{{ auth()->user()->name }}</flux:heading>
+                                <flux:text class="truncate">{{ auth()->user()->email }}</flux:text>
                             </div>
                         </div>
-                    </flux:menu.radio.group>
+                    </div>
+                </flux:menu.radio.group>
 
-                    <flux:menu.separator />
+                <flux:menu.separator />
 
                     <flux:menu.radio.group>
                     {{-- Settings 含有 Livewire form state，不使用 hover prefetch --}}
@@ -358,7 +369,7 @@
                     </flux:menu.item>
                     </flux:menu.radio.group>
 
-                    <flux:menu.separator />
+                <flux:menu.separator />
 
                     <form method="POST" action="{{ route('logout') }}" class="w-full">
                         @csrf
@@ -380,12 +391,13 @@
        {{ $slot }}
      
 
-        @persist('toast')
-            <flux:toast.group>
-                <flux:toast />
-            </flux:toast.group>
-        @endpersist
+    @persist('toast')
+        <flux:toast.group>
+            <flux:toast />
+        </flux:toast.group>
+    @endpersist
 
-        @fluxScripts
-    </body>
+    @fluxScripts
+</body>
+
 </html>
