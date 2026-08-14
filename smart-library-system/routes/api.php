@@ -48,9 +48,6 @@ Route::prefix('v1')->group(function () {
         );
     });
 });
-use App\Http\Controllers\BookingController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 
 
 // Default authenticated user API
