@@ -48,6 +48,171 @@
             </div>
         @endif
 
+        @if (auth()->user()->isLibrarian() && $managedBooks)
+            <section class="mt-8">
+                <div class="mb-4">
+                    <flux:heading size="lg">
+                        {{ __('Manage Book Copies') }}
+                    </flux:heading>
+
+                    <flux:text class="mt-1">
+                        {{ __('Change the total number of copies available in the library.') }}
+                    </flux:text>
+                </div>
+
+                @if (session('success'))
+                    <flux:callout
+                        variant="success"
+                        icon="check-circle"
+                        class="mb-4"
+                    >
+                        {{ session('success') }}
+                    </flux:callout>
+                @endif
+
+                @if (session('error'))
+                    <flux:callout
+                        variant="danger"
+                        icon="x-circle"
+                        class="mb-4"
+                    >
+                        {{ session('error') }}
+                    </flux:callout>
+                @endif
+
+                @error('total_copies')
+                    <flux:callout
+                        variant="danger"
+                        icon="x-circle"
+                        class="mb-4"
+                    >
+                        {{ $message }}
+                    </flux:callout>
+                @enderror
+
+                <div class="overflow-hidden rounded-xl border
+                            border-zinc-200 dark:border-zinc-700">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-zinc-50 text-zinc-600
+                                        dark:bg-zinc-900 dark:text-zinc-300">
+                                <tr>
+                                    <th class="px-4 py-3">
+                                        {{ __('Book') }}
+                                    </th>
+
+                                    <th class="px-4 py-3">
+                                        {{ __('ISBN') }}
+                                    </th>
+
+                                    <th class="px-4 py-3 text-center">
+                                        {{ __('Borrowed') }}
+                                    </th>
+
+                                    <th class="px-4 py-3 text-center">
+                                        {{ __('Available') }}
+                                    </th>
+
+                                    <th class="px-4 py-3">
+                                        {{ __('Total Copies') }}
+                                    </th>
+                                </tr>
+                            </thead>
+
+                            <tbody class="divide-y divide-zinc-200
+                                        dark:divide-zinc-700">
+                                @forelse ($managedBooks as $book)
+                                    <tr>
+                                        <td class="px-4 py-3">
+                                            <div class="font-medium">
+                                                {{ $book->title }}
+                                            </div>
+
+                                            <div class="text-xs text-zinc-500">
+                                                {{ $book->author }}
+                                            </div>
+                                        </td>
+
+                                        <td class="px-4 py-3">
+                                            {{ $book->isbn }}
+                                        </td>
+
+                                        <td class="px-4 py-3 text-center">
+                                            {{ $book->active_borrowings_count }}
+                                        </td>
+
+                                        <td class="px-4 py-3 text-center">
+                                            {{ $book->available_copies }}
+                                        </td>
+
+                                        <td class="px-4 py-3">
+                                            <form
+                                                method="POST"
+                                                action="{{ route(
+                                                    'books.copies.update',
+                                                    $book
+                                                ) }}"
+                                                class="flex items-end gap-2"
+                                            >
+                                                @csrf
+                                                @method('PATCH')
+
+                                                <div class="w-28">
+                                                    <label
+                                                        for="total-copies-{{ $book->id }}"
+                                                        class="sr-only"
+                                                    >
+                                                        {{ __('Total copies') }}
+                                                    </label>
+
+                                                    <input
+                                                        id="total-copies-{{ $book->id }}"
+                                                        name="total_copies"
+                                                        type="number"
+                                                        min="{{ $book->active_borrowings_count }}"
+                                                        max="10000"
+                                                        value="{{ $book->total_copies }}"
+                                                        required
+                                                        class="w-full rounded-lg border
+                                                            border-zinc-300 bg-white
+                                                            px-3 py-2 text-sm
+                                                            dark:border-zinc-600
+                                                            dark:bg-zinc-800"
+                                                    >
+                                                </div>
+
+                                                <flux:button
+                                                    type="submit"
+                                                    variant="primary"
+                                                    size="sm"
+                                                >
+                                                    {{ __('Update') }}
+                                                </flux:button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td
+                                            colspan="5"
+                                            class="px-4 py-8 text-center
+                                                text-zinc-500"
+                                        >
+                                            {{ __('No books found.') }}
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    {{ $managedBooks->withQueryString()->links() }}
+                </div>
+            </section>
+        @endif
+
         @if (auth()->user()->isStudent())
             @php
                 $borrowLimit = (int) config(

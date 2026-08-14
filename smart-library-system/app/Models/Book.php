@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'title',
@@ -26,5 +27,10 @@ class Book extends Model
     public function hasAvailableCopies(): bool
     {
         return $this->available_copies > 0;
+    }
+
+    public function borrowings(): HasMany
+    {
+        return $this->hasMany(Borrowing::class);
     }
 }

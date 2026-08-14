@@ -200,7 +200,17 @@ Route::middleware([
                 ]
             )->name('payment.reject');
         });
-});
+
+        Route::patch(
+            'books/{book}/copies',
+            [
+                BorrowingController::class,
+                'updateCopyQuantity',
+            ]
+        )
+            ->middleware('throttle:20,1')
+            ->name('books.copies.update');
+        });
 
 /*
 |--------------------------------------------------------------------------
