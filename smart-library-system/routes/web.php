@@ -9,6 +9,7 @@ use App\Http\Controllers\RoomMaintenanceController;
 use App\Http\Controllers\RoomReservationController;
 use App\Models\Room;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BookReservationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -210,7 +211,46 @@ Route::middleware([
         )
             ->middleware('throttle:20,1')
             ->name('books.copies.update');
-        });
+
+        //BookReservationController
+        Route::prefix('book-reservations')
+            ->name('book-reservations.')
+            ->group(function () {
+                Route::post(
+                    '/',
+                    [
+                        BookReservationController::class,
+                        'store',
+                    ]
+                )
+                    ->middleware('throttle:10,1')
+                    ->name('store');
+
+                Route::patch(
+                    '/{reservation}/approve',
+                    [
+                        BookReservationController::class,
+                        'approve',
+                    ]
+                )->name('approve');
+
+                Route::patch(
+                    '/{reservation}/reject',
+                    [
+                        BookReservationController::class,
+                        'reject',
+                    ]
+                )->name('reject');
+
+                Route::patch(
+                    '/{reservation}/cancel',
+                    [
+                        BookReservationController::class,
+                        'cancel',
+                    ]
+                )->name('cancel');
+            });
+});
 
 /*
 |--------------------------------------------------------------------------

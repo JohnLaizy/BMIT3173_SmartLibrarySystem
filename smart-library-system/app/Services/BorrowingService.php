@@ -10,12 +10,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\CarbonInterface;
 use LogicException;
+use App\Models\BookReservation;
 
 class BorrowingService
 {
     public function borrow(
         User $student,
-        Book $book
+        Book $book,
+        ?BookReservation $reservation = null
     ): Borrowing {
         if (! $student->isStudent()) {
             throw BorrowingRuleViolation::because(
@@ -24,7 +26,11 @@ class BorrowingService
         }
 
         return DB::transaction(
-            function () use ($student, $book): Borrowing {
+            function () use (
+                $student,
+                $book,
+                $reservation
+            ): Borrowing {
                 $lockedStudent = User::query()
                     ->lockForUpdate()
                     ->findOrFail($student->id);
@@ -36,6 +42,44 @@ class BorrowingService
                 $this->markExpiredBorrowings(
                     $lockedStudent->id
                 );
+
+                BookReservation::query()
+                    ->where(
+                        'status',
+                        BookReservation::STATUS_APPROVED
+                    )
+                    ->where('book_id', $lockedBook->id)
+                    ->whereNotNull('expires_at')
+                    ->where('expires_at', '<=', now())
+                    ->update([
+                        'status' => BookReservation::STATUS_EXPIRED,
+                        'updated_at' => now(),
+                    ]);
+
+                $lockedReservation = null;
+
+                if ($reservation !== null) {
+                    $lockedReservation =
+                        BookReservation::query()
+                            ->lockForUpdate()
+                            ->findOrFail($reservation->id);
+
+                    $validReservation =
+                        $lockedReservation->user_id ===
+                            $lockedStudent->id
+                        && $lockedReservation->book_id ===
+                            $lockedBook->id
+                        && $lockedReservation->status ===
+                            BookReservation::STATUS_APPROVED
+                        && $lockedReservation->expires_at !== null
+                        && $lockedReservation->expires_at->isFuture();
+
+                    if (! $validReservation) {
+                        throw BorrowingRuleViolation::because(
+                            'This reservation is no longer valid for collection.'
+                        );
+                    }
+                }
 
                 $hasUnresolvedOverdue =
                     Borrowing::query()

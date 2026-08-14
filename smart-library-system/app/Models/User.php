@@ -88,6 +88,23 @@ class User extends Authenticatable
         );
     }
 
+    //book Reservations
+    public function bookReservations(): HasMany
+    {
+        return $this->hasMany(
+            BookReservation::class,
+            'user_id'
+        );
+    }
+
+    public function reviewedBookReservations(): HasMany
+    {
+        return $this->hasMany(
+            BookReservation::class,
+            'reviewed_by'
+        );
+    }
+
     /**
      * Student 建立的 Room Reservations。
      *
