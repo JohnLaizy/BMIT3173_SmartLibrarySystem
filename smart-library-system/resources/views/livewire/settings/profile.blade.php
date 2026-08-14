@@ -99,9 +99,17 @@
                 @endif
             </div>
 
-            {{--
-                Save 按钮与 Loading 状态。
-            --}}
+
+            <flux:input
+                wire:model="phone"
+                :label="__('Phone number')"
+                type="tel"
+                required
+                autocomplete="tel"
+                placeholder="012-3456789"
+            />
+
+
             <div class="flex items-center gap-4">
                 <flux:button
                     type="submit"

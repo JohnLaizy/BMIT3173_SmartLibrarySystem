@@ -32,6 +32,8 @@ class Profile extends Component
      */
     public string $profileEmail = '';
 
+    public string $phone = '';
+
     /**
      * Profile Component 第一次载入时执行。
      *
@@ -40,10 +42,9 @@ class Profile extends Component
      */
     public function mount(): void
     {
-        $user = $this->authenticatedUser();
-
-        $this->profileName = $user->name;
-        $this->profileEmail = $user->email;
+        $this->name = Auth::user()->name;
+        $this->email = Auth::user()->email;
+        $this->phone = Auth::user()->phone ?? '';
     }
 
     /**
