@@ -91,6 +91,7 @@ class BorrowingController extends Controller
             'activeCopyCount' => $activeCopyCount,
             'hasUnresolvedOverdue' =>
                 $hasUnresolvedOverdue,
+            'managedBooks' => $managedBooks,
         ]);
     }
 
