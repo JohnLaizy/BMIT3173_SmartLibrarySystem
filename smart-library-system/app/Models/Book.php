@@ -22,16 +22,10 @@ class Book extends Model
         'file_path',
     ];
 
-    protected $casts = [
-        'total_copies' => 'integer',
-        'available_copies' => 'integer',
-    ];
-}
-    //
     protected function casts(): array
     {
         return [
-            'total_copies' => 'integer',    
+            'total_copies' => 'integer',
             'available_copies' => 'integer',
         ];
     }
@@ -46,9 +40,10 @@ class Book extends Model
         return $this->hasMany(Borrowing::class);
     }
 
-    //book reservations
     public function reservations(): HasMany
     {
-        return $this->hasMany(BookReservation::class);
+        return $this->hasMany(
+            BookReservation::class
+        );
     }
 }

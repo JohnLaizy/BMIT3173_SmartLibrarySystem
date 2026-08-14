@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\BookController;
+use App\Http\Controllers\BookingController;
 use App\Http\Controllers\RoomAvailabilityApiController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -21,18 +23,12 @@ Route::prefix('v1')->group(function () {
         [BookController::class, 'show']
     );
 
-    /*
-    |--------------------------------------------------------------------------
-    | Room Availability Web Service
-    |--------------------------------------------------------------------------
-    |
-    | Provides available room information to other systems/modules.
-    |
-    */
-
     Route::get(
         '/rooms/availability',
-        [RoomAvailabilityApiController::class, 'index']
+        [
+            RoomAvailabilityApiController::class,
+            'index',
+        ]
     )->name('api.rooms.availability');
 
     /*
@@ -41,26 +37,35 @@ Route::prefix('v1')->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    Route::middleware(['auth:sanctum'])->group(function () {
-        Route::post(
-            '/books',
-            [BookController::class, 'store']
-        );
-    });
+    Route::middleware('auth:sanctum')
+        ->group(function () {
+            Route::post(
+                '/books',
+                [BookController::class, 'store']
+            );
+        });
 });
-use App\Http\Controllers\BookingController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 
+/*
+|--------------------------------------------------------------------------
+| Authenticated User API
+|--------------------------------------------------------------------------
+*/
 
-// Default authenticated user API
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+/*
+|--------------------------------------------------------------------------
+| Room Booking Availability API
+|--------------------------------------------------------------------------
+*/
 
-// Room Booking Web Service
 Route::get(
     '/bookings/availability',
-    [BookingController::class, 'apiAvailability']
+    [
+        BookingController::class,
+        'apiAvailability',
+    ]
 )->name('api.bookings.availability');
