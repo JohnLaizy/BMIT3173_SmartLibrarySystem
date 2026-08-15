@@ -13,6 +13,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Validation\Rule;
 
 class BookReservationController extends Controller
 {
@@ -50,6 +52,7 @@ class BookReservationController extends Controller
 
         $books = $user->isStudent()
             ? Book::query()
+                ->where('type', Book::TYPE_PHYSICAL)
                 ->orderBy('title')
                 ->limit(100)
                 ->get()
@@ -88,7 +91,14 @@ class BookReservationController extends Controller
             'book_id' => [
                 'required',
                 'integer',
-                'exists:books,id',
+                Rule::exists('books', 'id')
+                    ->where(
+                        fn (Builder $query) =>
+                            $query->where(
+                                'type',
+                                Book::TYPE_PHYSICAL
+                            )
+                    ),
             ],
         ]);
 

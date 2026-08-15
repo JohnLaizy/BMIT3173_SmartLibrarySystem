@@ -26,6 +26,8 @@ class BookCopyQuantityTest extends TestCase
             'title' => 'Clean Code',
             'author' => 'Robert C. Martin',
             'isbn' => '9780132350884',
+            'category' => 'Programming',
+            'type' => Book::TYPE_PHYSICAL,
             'total_copies' => 2,
             'available_copies' => 1,
         ]);
@@ -69,6 +71,8 @@ class BookCopyQuantityTest extends TestCase
             'title' => 'Refactoring',
             'author' => 'Martin Fowler',
             'isbn' => '9780134757599',
+            'category' => 'Programming',
+            'type' => Book::TYPE_PHYSICAL,
             'total_copies' => 2,
             'available_copies' => 1,
         ]);
@@ -108,6 +112,8 @@ class BookCopyQuantityTest extends TestCase
             'title' => 'Domain-Driven Design',
             'author' => 'Eric Evans',
             'isbn' => '9780321125217',
+            'category' => 'Software Engineering',
+            'type' => Book::TYPE_PHYSICAL,
             'total_copies' => 2,
             'available_copies' => 2,
         ]);

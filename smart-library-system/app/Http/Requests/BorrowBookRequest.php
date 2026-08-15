@@ -4,6 +4,9 @@ namespace App\Http\Requests;
 
 use App\Models\Borrowing;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Validation\Rule;
+use App\Models\Book;
 
 class BorrowBookRequest extends FormRequest
 {
@@ -33,7 +36,14 @@ class BorrowBookRequest extends FormRequest
                 'bail',
                 'required',
                 'integer',
-                'exists:books,id',
+                Rule::exists('books', 'id')
+                    ->where(
+                        fn (Builder $query) =>
+                            $query->where(
+                                'type',
+                                Book::TYPE_PHYSICAL
+                            )
+                    ),
             ],
         ];
     }

@@ -154,6 +154,8 @@ class BookReservationTest extends TestCase
             'title' => 'Design Patterns',
             'author' => 'Erich Gamma',
             'isbn' => fake()->unique()->isbn13(),
+            'category' => 'Software Engineering',
+            'type' => Book::TYPE_PHYSICAL,
             'total_copies' => 2,
             'available_copies' => 2,
         ]);
@@ -236,6 +238,8 @@ class BookReservationTest extends TestCase
             'title' => 'The Pragmatic Programmer',
             'author' => 'Andrew Hunt',
             'isbn' => fake()->unique()->isbn13(),
+            'category' => 'Programming',
+            'type' => Book::TYPE_PHYSICAL,
             'total_copies' => 1,
             'available_copies' => 1,
         ]);

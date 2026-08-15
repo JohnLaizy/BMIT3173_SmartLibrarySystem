@@ -16,9 +16,15 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
+use App\Services\BorrowingService;
 
 class BookController extends Controller
 {
+    public function __construct(
+        private readonly BorrowingService $borrowingService
+    ) {
+    }
+
     /**
      * 检索图书列表 (支持 Web 页面与 API JSON 响应)
      */
@@ -231,22 +237,41 @@ class BookController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'author' => ['required', 'string', 'max:255'],
             'category' => ['required', 'string', 'max:100'],
-            'total_copies' => ['required_if:type,physical', 'integer', 'min:' . ($book->total_copies - $book->available_copies)],
+            'total_copies' => $book->isPhysical()
+                ? [
+                    'required',
+                    'integer',
+                    'min:0',
+                    'max:10000',
+                ]
+                : [
+                    'nullable',
+                    'integer',
+                    'min:0',
+                    'max:10000',
+                ],
         ]);
 
         DB::beginTransaction();
+
         try {
-            $difference = 0;
-            if ($book->type === 'physical' && isset($validated['total_copies'])) {
-                $difference = $validated['total_copies'] - $book->total_copies;
-                $book->available_copies = max(0, $book->available_copies + $difference);
-                $book->total_copies = $validated['total_copies'];
+            if (
+                $book->isPhysical()
+                && isset($validated['total_copies'])
+            ) {
+                $book = $this->borrowingService
+                    ->updateCopyQuantity(
+                        $request->user(),
+                        $book,
+                        (int) $validated['total_copies']
+                    );
             }
 
-            $book->title = $validated['title'];
-            $book->author = $validated['author'];
-            $book->category = $validated['category'];
-            $book->save();
+            $book->fill([
+                'title' => $validated['title'],
+                'author' => $validated['author'],
+                'category' => $validated['category'],
+            ])->save();
 
             DB::commit();
 
@@ -303,12 +328,21 @@ class BookController extends Controller
         }
 
         // 检查是否有未还副本
-        if ($book->type === 'physical' && $book->available_copies < $book->total_copies) {
-            $msg = 'Cannot delete book. Some copies are currently borrowed.';
+        if (
+            $book->borrowings()->exists()
+            || $book->reservations()->exists()
+        ) {
+            $message =
+                'This book cannot be deleted because it has borrowing or reservation history.';
+
             if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $msg], Response::HTTP_UNPROCESSABLE_ENTITY);
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
-            return back()->with('error', $msg);
+
+            return back()->with('error', $message);
         }
 
         DB::beginTransaction();

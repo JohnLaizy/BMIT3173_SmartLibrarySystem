@@ -59,6 +59,12 @@ class BookReservationService
                         ->active()
                         ->exists();
 
+                if (! $lockedBook->isPhysical()) {
+                    throw BorrowingRuleViolation::because(
+                        'Digital books do not require reservations.'
+                    );
+                }
+
                 if ($hasActiveReservation) {
                     throw BorrowingRuleViolation::because(
                         'You already have an active reservation for this book.'

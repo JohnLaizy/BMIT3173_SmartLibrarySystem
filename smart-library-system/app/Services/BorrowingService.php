@@ -39,6 +39,12 @@ class BorrowingService
                     ->lockForUpdate()
                     ->findOrFail($book->id);
 
+                if (! $lockedBook->isPhysical()) {
+                    throw BorrowingRuleViolation::because(
+                        'Digital books do not use the physical borrowing workflow.'
+                    );
+                }
+
                 $this->markExpiredBorrowings(
                     $lockedStudent->id
                 );
@@ -493,5 +499,61 @@ class BorrowingService
         }
 
         return $expiredBorrowings->count();
+    }
+
+    public function updateCopyQuantity(
+        User $librarian,
+        Book $book,
+        int $newTotal
+    ): Book {
+        if (! $librarian->isLibrarian()) {
+            throw BorrowingRuleViolation::because(
+                'Only librarians may manage book quantities.'
+            );
+        }
+
+        return DB::transaction(
+            function () use (
+                $book,
+                $newTotal
+            ): Book {
+                $lockedBook = Book::query()
+                    ->lockForUpdate()
+                    ->findOrFail($book->id);
+
+                if (! $lockedBook->isPhysical()) {
+                    throw BorrowingRuleViolation::because(
+                        'Copy quantities apply only to physical books.'
+                    );
+                }
+
+                $activeBorrowings = Borrowing::query()
+                    ->where('book_id', $lockedBook->id)
+                    ->whereNull('returned_at')
+                    ->lockForUpdate()
+                    ->count();
+
+                if ($newTotal < $activeBorrowings) {
+                    throw BorrowingRuleViolation::because(
+                        "Total copies cannot be lower than the {$activeBorrowings} copies currently on loan."
+                    );
+                }
+
+                if ($newTotal < 0 || $newTotal > 10000) {
+                    throw BorrowingRuleViolation::because(
+                        'Total copies must be between 0 and 10,000.'
+                    );
+                }
+
+                $lockedBook->forceFill([
+                    'total_copies' => $newTotal,
+                    'available_copies' =>
+                        $newTotal - $activeBorrowings,
+                ])->save();
+
+                return $lockedBook;
+            },
+            attempts: 3
+        );
     }
 }
