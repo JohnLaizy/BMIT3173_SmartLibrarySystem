@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Facades\UserManagementFacade;
+use App\Concerns\ProfileValidationRules;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -10,29 +12,38 @@ use Illuminate\View\View;
 
 class UserManagementController extends Controller
 {
+    use ProfileValidationRules;
     /**
      * Display all users for librarian management.
      */
-    public function index(Request $request): View
-    {
-        abort_unless(auth()->user()?->isLibrarian(), 403);
 
-        $search = trim((string) $request->query('search', ''));
- 
-        $users = User::query()
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($query) use ($search) {
-                    $query->where('name', 'like', '%' . $search . '%')
-                        ->orWhere('email', 'like', '%' . $search . '%')
-                        ->orWhere('phone', 'like', '%' . $search . '%');
-                });
-            })
-            ->orderBy('name')
-            ->paginate(10)
-            ->withQueryString();
 
-        return view('users.index', compact('users', 'search'));
-    }
+
+    public function index(
+    Request $request,
+    UserManagementFacade $facade
+): View {
+    abort_unless(auth()->user()?->isLibrarian(), 403);
+
+    $validatedSearch = $request->validate([
+        'search' => [
+            'nullable',
+            'string',
+            'max:100',
+        ],
+    ]);
+
+    $search = trim($validatedSearch['search'] ?? '');
+
+    $users = $facade->searchUsers($search);
+
+    return view(
+        'users.index',
+        compact('users', 'search')
+    );
+}
+
+
 
     /**
      * Show the edit form for a user.
@@ -47,29 +58,25 @@ class UserManagementController extends Controller
     /**
      * Update a user's account information.
      */
-    public function update(Request $request, User $user): RedirectResponse
+
+
+    public function update(
+    Request $request,
+    User $user,
+    UserManagementFacade $facade
+    ): RedirectResponse
     {
         abort_unless(auth()->user()?->isLibrarian(), 403);
 
         $isOwnAccount = auth()->id() === $user->id;
 
         $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique(User::class)->ignore($user->id),
-            ],
-            'phone' => [
-                'required',
-                'string',
-                'max:20',
-            ],
+            'name' => $this->nameRules(),
+
+            'email' => $this->emailRules($user->id),
+
+            'phone' => $this->phoneRules(),
+
             'role' => [
                 'required',
                 Rule::in([
@@ -93,7 +100,11 @@ class UserManagementController extends Controller
             $validated['account_status'] = User::STATUS_ACTIVE;
         }
 
-        $user->update($validated);
+        $facade->updateUser(
+            $user,
+            $validated,
+            $isOwnAccount
+        );
 
         return redirect()
             ->route('users.index')

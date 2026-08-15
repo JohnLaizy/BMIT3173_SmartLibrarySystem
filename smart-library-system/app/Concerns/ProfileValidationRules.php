@@ -44,7 +44,7 @@ trait ProfileValidationRules
         return [
             'required',
             'string',
-            'max:20',
+            'regex:/^(?=(?:\D*\d){8,12}\D*$)\+?\d+(?:-\d+)*$/',
         ];
     }
 

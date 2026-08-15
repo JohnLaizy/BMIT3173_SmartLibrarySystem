@@ -439,6 +439,18 @@
         </flux:toast.group>
     @endpersist
 
+    @if (session('inactive_action_error'))
+        <div
+            x-data
+            x-init="$flux.toast({
+                heading: 'Action Restricted',
+                text: @js(session('inactive_action_error')),
+                variant: 'warning',
+                duration: 7000
+            })"
+        ></div>
+    @endif
+
     @fluxScripts
 
 </body>

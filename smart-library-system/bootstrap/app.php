@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\RestrictInactiveUserActions;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,13 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
 
-    ->withMiddleware(function (Middleware $middleware): void {
-        /*
-         * 信任 Cloudflare Tunnel 传递的代理资料，
-         * 让 Laravel 知道外部连接使用 HTTPS。
-         */
-        $middleware->trustProxies(at: '*');
-    })
+   ->withMiddleware(function (Middleware $middleware): void {
+    $middleware->trustProxies(at: '*');
+
+    $middleware->web(append: [
+        RestrictInactiveUserActions::class,
+    ]);
+})
 
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
