@@ -2,14 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Book extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'isbn',
         'title',
@@ -35,11 +32,17 @@ class Book extends Model
         return $this->available_copies > 0;
     }
 
+    /**
+     * @return HasMany<Borrowing, $this>
+     */
     public function borrowings(): HasMany
     {
         return $this->hasMany(Borrowing::class);
     }
 
+    /**
+     * @return HasMany<BookReservation, $this>
+     */
     public function reservations(): HasMany
     {
         return $this->hasMany(

@@ -4,13 +4,13 @@ namespace App\Services;
 
 use App\Exceptions\BorrowingRuleViolation;
 use App\Models\Book;
+use App\Models\BookReservation;
 use App\Models\Borrowing;
+use App\Models\PaymentAudit;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Carbon\CarbonInterface;
-use LogicException;
-use App\Models\BookReservation;
 
 class BorrowingService
 {
@@ -164,8 +164,7 @@ class BorrowingService
                 $borrowing = Borrowing::query()->create([
                     'user_id' => $lockedStudent->id,
                     'book_id' => $lockedBook->id,
-                    'status' =>
-                        Borrowing::STATUS_BORROWED,
+                    'status' => Borrowing::STATUS_BORROWED,
                     'borrowed_at' => $borrowedAt,
                     'due_at' => $dueAt,
                 ]);
@@ -216,12 +215,6 @@ class BorrowingService
                 $returnedAt = now();
                 $dueAt = $lockedBorrowing->due_at;
 
-                if ($dueAt === null) {
-                    throw new LogicException(
-                        'Borrowing due date is missing.'
-                    );
-                }
-
                 if (
                     $lockedBorrowing->status ===
                         Borrowing::STATUS_BORROWED
@@ -267,8 +260,7 @@ class BorrowingService
                     'borrowing_id' => $lockedBorrowing->id,
                     'book_id' => $lockedBook->id,
                     'user_id' => $lockedBorrowing->user_id,
-                    'overdue_fee_cents' =>
-                        $lockedBorrowing->overdue_fee_cents,
+                    'overdue_fee_cents' => $lockedBorrowing->overdue_fee_cents,
                 ]);
 
                 return $lockedBorrowing;
@@ -296,6 +288,12 @@ class BorrowingService
                     ->lockForUpdate()
                     ->findOrFail($borrowing->id);
 
+                $paymentReference =
+                    $lockedBorrowing->payment_reference;
+
+                $paymentMethod =
+                    $lockedBorrowing->payment_method;
+
                 $lockedBorrowing
                     ->state()
                     ->approvePayment(
@@ -305,9 +303,18 @@ class BorrowingService
 
                 $lockedBorrowing->save();
 
+                PaymentAudit::query()->create([
+                    'borrowing_id' => $lockedBorrowing->id,
+                    'actor_user_id' => $librarian->id,
+                    'payment_reference' => $paymentReference,
+                    'event' => 'payment_approved',
+                    'metadata' => [
+                        'payment_method' => $paymentMethod,
+                    ],
+                ]);
+
                 Log::info('Overdue payment approved.', [
-                    'borrowing_id' =>
-                        $lockedBorrowing->id,
+                    'borrowing_id' => $lockedBorrowing->id,
                     'approved_by' => $librarian->id,
                 ]);
 
@@ -336,15 +343,30 @@ class BorrowingService
                     ->lockForUpdate()
                     ->findOrFail($borrowing->id);
 
+                $paymentReference =
+                    $lockedBorrowing->payment_reference;
+
+                $paymentMethod =
+                    $lockedBorrowing->payment_method;
+
                 $lockedBorrowing
                     ->state()
                     ->rejectPayment();
 
                 $lockedBorrowing->save();
 
+                PaymentAudit::query()->create([
+                    'borrowing_id' => $lockedBorrowing->id,
+                    'actor_user_id' => $librarian->id,
+                    'payment_reference' => $paymentReference,
+                    'event' => 'payment_rejected',
+                    'metadata' => [
+                        'payment_method' => $paymentMethod,
+                    ],
+                ]);
+
                 Log::warning('Overdue payment rejected.', [
-                    'borrowing_id' =>
-                        $lockedBorrowing->id,
+                    'borrowing_id' => $lockedBorrowing->id,
                     'rejected_by' => $librarian->id,
                 ]);
 
@@ -359,12 +381,6 @@ class BorrowingService
         CarbonInterface $returnedAt
     ): int {
         $dueAt = $borrowing->due_at;
-
-        if ($dueAt === null) {
-            throw new LogicException(
-                'Borrowing due date is missing.'
-            );
-        }
 
         $secondsOverdue = max(
             0,
@@ -432,11 +448,23 @@ class BorrowingService
 
                 $lockedBorrowing->save();
 
+                PaymentAudit::query()->create([
+                    'borrowing_id' => $lockedBorrowing->id,
+                    'actor_user_id' => $student->id,
+                    'payment_reference' => $paymentReference,
+                    'event' => 'payment_submitted',
+                    'metadata' => [
+                        'payment_method' => $lockedBorrowing->payment_method,
+                        'source' => $lockedBorrowing->payment_method === null
+                                ? 'manual_reference'
+                                : 'simulated_payment',
+                    ],
+                ]);
+
                 Log::info(
                     'Overdue payment submitted for approval.',
                     [
-                        'borrowing_id' =>
-                            $lockedBorrowing->id,
+                        'borrowing_id' => $lockedBorrowing->id,
                         'user_id' => $student->id,
                     ]
                 );

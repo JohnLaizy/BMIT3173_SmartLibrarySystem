@@ -3,6 +3,7 @@
 use App\Http\Controllers\BookReservationController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\LibrarySettingController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\RoomAvailabilityController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomDashboardController;
@@ -159,6 +160,41 @@ Route::middleware([
         'maintenances',
         RoomMaintenanceController::class
     )->except('show');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Simulated Payment Management
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('payments', [
+        PaymentController::class,
+        'index',
+    ])->name('payments.index');
+
+    Route::get('payments/{borrowing}', [
+        PaymentController::class,
+        'show',
+    ])->name('payments.show');
+
+    Route::get('payments/{borrowing}/receipt', [
+        PaymentController::class,
+        'receipt',
+    ])->name('payments.receipt');
+
+    Route::post('payments/{borrowing}/start', [
+        PaymentController::class,
+        'start',
+    ])
+        ->middleware('throttle:10,1')
+        ->name('payments.start');
+
+    Route::post('payments/{borrowing}/complete', [
+        PaymentController::class,
+        'complete',
+    ])
+        ->middleware('throttle:10,1')
+        ->name('payments.complete');
 
     /*
     |--------------------------------------------------------------------------

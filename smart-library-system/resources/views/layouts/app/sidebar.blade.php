@@ -49,6 +49,17 @@
                             {{ __('My Reservations') }}
                         @endif
                     </flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="credit-card"
+                        :href="route('payments.index')"
+                        :current="request()->routeIs('payments.*')"
+                        wire:navigate
+                    >
+                        {{ auth()->user()->isLibrarian()
+                            ? __('Payment Management')
+                            : __('My Payments') }}
+                    </flux:sidebar.item>
                 </flux:sidebar.group>
 
     {{-- 系统管理功能 --}}
@@ -249,6 +260,21 @@
             @endif
         </a>
 
+        <a
+            href="{{ route('payments.index') }}"
+            class="mt-1 flex min-h-11 items-center gap-3 rounded-xl
+                   px-3 text-sm font-semibold transition
+                   {{ request()->routeIs('payments.*')
+                       ? 'bg-zinc-100 text-zinc-950 dark:bg-zinc-800 dark:text-white'
+                       : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800' }}"
+            wire:navigate
+        >
+            <span aria-hidden="true">$</span>
+            {{ auth()->user()->isLibrarian()
+                ? 'Payment Management'
+                : 'My Payments' }}
+        </a>
+
         {{-- Librarian-only management links --}}
         @if (auth()->user()->isLibrarian())
             <div class="my-3 border-t border-zinc-200 dark:border-zinc-700"></div>
@@ -389,7 +415,33 @@
 
         
        {{ $slot }}
-     
+
+    {{--
+        全系统的纯视觉向下提示。
+        只要下方还有内容、且使用者尚未开始向下滑动，箭头就会显示在底部中央。
+        它没有 click handler，pointer-events-none 也确保不会覆盖正常操作。
+    --}}
+    <div
+        data-app-scroll-hint
+        class="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center opacity-0 transition-opacity duration-200"
+        aria-hidden="true"
+        hidden
+    >
+        <span
+            class="flex size-11 items-center justify-center rounded-full border border-blue-500/25 bg-zinc-900/95 text-blue-300 shadow-lg shadow-black/20 backdrop-blur dark:bg-zinc-800/95"
+        >
+            <svg
+                class="app-scroll-hint-arrow size-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+            >
+                <path d="m6 9 6 6 6-6" />
+            </svg>
+        </span>
+    </div>
 
     @persist('toast')
         <flux:toast.group>
@@ -398,6 +450,48 @@
     @endpersist
 
     @fluxScripts
+
+    <script data-navigate-once>
+        (() => {
+            const updateAppScrollHint = () => {
+                const hint = document.querySelector('[data-app-scroll-hint]');
+
+                if (!(hint instanceof HTMLElement)) {
+                    return;
+                }
+
+                const canScrollDown = window.scrollY + window.innerHeight
+                    < document.documentElement.scrollHeight - 8;
+                const userHasStartedScrolling = window.scrollY > 48;
+                const shouldShowHint = canScrollDown && !userHasStartedScrolling;
+
+                hint.hidden = !shouldShowHint;
+                hint.classList.toggle('opacity-100', shouldShowHint);
+                hint.classList.toggle('opacity-0', !shouldShowHint);
+            };
+
+            window.smartLibraryUpdateAppScrollHint = updateAppScrollHint;
+
+            if (!window.smartLibraryAppScrollHintInitialised) {
+                window.smartLibraryAppScrollHintInitialised = true;
+
+                let frameId;
+
+                const scheduleHintUpdate = () => {
+                    window.cancelAnimationFrame(frameId);
+                    frameId = window.requestAnimationFrame(() => {
+                        window.smartLibraryUpdateAppScrollHint?.();
+                    });
+                };
+
+                window.addEventListener('scroll', scheduleHintUpdate, { passive: true });
+                window.addEventListener('resize', scheduleHintUpdate);
+                document.addEventListener('livewire:navigated', scheduleHintUpdate);
+            }
+
+            updateAppScrollHint();
+        })();
+    </script>
 </body>
 
 </html>

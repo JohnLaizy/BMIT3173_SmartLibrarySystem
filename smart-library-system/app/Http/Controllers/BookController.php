@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreBookRequest;
 use App\Models\Book;
 use App\Services\DigitalBookFactory;
@@ -25,16 +24,84 @@ class BookController extends Controller
     public function index(Request $request): View|JsonResponse
     {
         try {
-            $query = Book::query();
+            $query = Book::query()->withCount([
+                /*
+                 * 库存管理表必须显示「正在借出」数量。
+                 * 只计算尚未填入 returned_at 的借阅记录，
+                 * 与 BorrowingController 的库存保护规则保持一致。
+                 */
+                'borrowings as active_borrowings_count' => fn ($query) => $query
+                    ->whereNull('returned_at'),
+            ]);
 
-            // 安全的参数化模糊查询 (ORM 防御 SQL 注入)
-            if ($search = $request->input('search')) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('title', 'like', "%{$search}%")
-                      ->orWhere('author', 'like', "%{$search}%")
-                      ->orWhere('isbn', 'like', "%{$search}%")
-                      ->orWhere('category', 'like', "%{$search}%");
+            /*
+             * 图书搜索使用「关键词片段」匹配，而不是要求用户完整输入
+             * 标题、作者、ISBN 或分类。例如输入 arch、martin 或 013449
+             * 都能够找出相关书籍。
+             *
+             * 每一个关键词都经由 Query Builder 绑定成参数，因此不会把
+             * 用户输入直接拼进 SQL 指令中。
+             */
+            $search = trim((string) $request->input('search', ''));
+
+            if ($search !== '') {
+                $tokens = preg_split(
+                    '/[\s\p{P}]+/u',
+                    $search,
+                    -1,
+                    PREG_SPLIT_NO_EMPTY
+                );
+
+                if ($tokens === false) {
+                    $tokens = [$search];
+                }
+
+                // 限制关键词数量，避免非常长的输入产生过多 OR 条件。
+                $tokens = array_slice(
+                    array_values(array_unique($tokens)),
+                    0,
+                    8
+                );
+
+                $query->where(function ($searchQuery) use ($tokens): void {
+                    foreach ($tokens as $token) {
+                        $like = '%'.$token.'%';
+
+                        $searchQuery->orWhere(
+                            function ($tokenQuery) use ($like): void {
+                                $tokenQuery
+                                    ->where('title', 'like', $like)
+                                    ->orWhere('author', 'like', $like)
+                                    ->orWhere('isbn', 'like', $like)
+                                    ->orWhere('category', 'like', $like);
+                            }
+                        );
+                    }
                 });
+
+                /*
+                 * 把最接近输入的结果排在前面：完整标题、标题开头、
+                 * 标题包含内容，再到作者、ISBN 与分类。
+                 */
+                $query->orderByRaw(
+                    'case
+                        when lower(title) = lower(?) then 0
+                        when lower(title) like lower(?) then 1
+                        when lower(title) like lower(?) then 2
+                        when lower(author) like lower(?) then 3
+                        when isbn like ? then 4
+                        when lower(category) like lower(?) then 5
+                        else 6
+                    end',
+                    [
+                        $search,
+                        $search.'%',
+                        '%'.$search.'%',
+                        '%'.$search.'%',
+                        '%'.$search.'%',
+                        '%'.$search.'%',
+                    ]
+                );
             }
 
             // 按类型过滤
@@ -93,8 +160,8 @@ class BookController extends Controller
         try {
             // 根据图书类型委派给具体工厂 (Factory Method Pattern)
             $factory = match ($validated['type']) {
-                'physical' => new PhysicalBookFactory(),
-                'ebook' => new DigitalBookFactory(),
+                'physical' => new PhysicalBookFactory,
+                'ebook' => new DigitalBookFactory,
             };
 
             // 工厂实例化并持久化数据模型
@@ -149,7 +216,7 @@ class BookController extends Controller
                 ], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
 
-            return back()->withInput()->with('error', 'Failed to register book: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Failed to register book: '.$e->getMessage());
         }
     }
 
@@ -161,13 +228,14 @@ class BookController extends Controller
         try {
             $book = Book::find($id);
 
-            if (!$book) {
+            if (! $book) {
                 if ($request->wantsJson()) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Book not found.',
                     ], Response::HTTP_NOT_FOUND);
                 }
+
                 return redirect()->route('books.index')->with('error', 'Book not found.');
             }
 
@@ -206,7 +274,7 @@ class BookController extends Controller
     {
         $book = Book::find($id);
 
-        if (!$book) {
+        if (! $book) {
             return redirect()->route('books.index')->with('error', 'Book not found.');
         }
 
@@ -220,10 +288,11 @@ class BookController extends Controller
     {
         $book = Book::find($id);
 
-        if (!$book) {
+        if (! $book) {
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Book not found.'], Response::HTTP_NOT_FOUND);
             }
+
             return redirect()->route('books.index')->with('error', 'Book not found.');
         }
 
@@ -231,7 +300,7 @@ class BookController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'author' => ['required', 'string', 'max:255'],
             'category' => ['required', 'string', 'max:100'],
-            'total_copies' => ['required_if:type,physical', 'integer', 'min:' . ($book->total_copies - $book->available_copies)],
+            'total_copies' => ['required_if:type,physical', 'integer', 'min:'.($book->total_copies - $book->available_copies)],
         ]);
 
         DB::beginTransaction();
@@ -295,10 +364,11 @@ class BookController extends Controller
     {
         $book = Book::find($id);
 
-        if (!$book) {
+        if (! $book) {
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Book not found.'], Response::HTTP_NOT_FOUND);
             }
+
             return redirect()->route('books.index')->with('error', 'Book not found.');
         }
 
@@ -308,6 +378,7 @@ class BookController extends Controller
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $msg], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
+
             return back()->with('error', $msg);
         }
 

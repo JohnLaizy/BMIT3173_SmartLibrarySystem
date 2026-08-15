@@ -61,170 +61,6 @@
             </div>
         @endif
 
-        @if (auth()->user()->isLibrarian() && $managedBooks)
-            <section
-                class="mt-1 rounded-2xl border border-zinc-200 bg-white p-5
-                       shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
-            >
-                <div class="mb-4">
-                    <flux:heading size="lg">
-                        {{ __('Manage Book Copies') }}
-                    </flux:heading>
-
-                    <flux:text class="mt-1">
-                        {{ __('Change the total number of copies available in the library.') }}
-                    </flux:text>
-                </div>
-
-                @if (session('success'))
-                    <flux:callout
-                        variant="success"
-                        icon="check-circle"
-                        class="mb-4"
-                    >
-                        {{ session('success') }}
-                    </flux:callout>
-                @endif
-
-                @if (session('error'))
-                    <flux:callout
-                        variant="danger"
-                        icon="x-circle"
-                        class="mb-4"
-                    >
-                        {{ session('error') }}
-                    </flux:callout>
-                @endif
-
-                @error('total_copies')
-                    <flux:callout
-                        variant="danger"
-                        icon="x-circle"
-                        class="mb-4"
-                    >
-                        {{ $message }}
-                    </flux:callout>
-                @enderror
-
-                <div
-                    class="overflow-hidden rounded-xl border border-zinc-200
-                           bg-zinc-950 text-zinc-100 dark:border-zinc-700"
-                >
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm">
-                            <thead class="bg-zinc-900 text-zinc-200">
-                                <tr>
-                                    <th class="px-4 py-3">
-                                        {{ __('Book') }}
-                                    </th>
-
-                                    <th class="px-4 py-3">
-                                        {{ __('ISBN') }}
-                                    </th>
-
-                                    <th class="px-4 py-3 text-center">
-                                        {{ __('Borrowed') }}
-                                    </th>
-
-                                    <th class="px-4 py-3 text-center">
-                                        {{ __('Available') }}
-                                    </th>
-
-                                    <th class="px-4 py-3">
-                                        {{ __('Total Copies') }}
-                                    </th>
-                                </tr>
-                            </thead>
-
-                            <tbody class="divide-y divide-zinc-800 bg-zinc-950">
-                            @forelse ($managedBooks as $book)
-                                    <tr class="transition-colors hover:bg-zinc-900/80">
-                                        <td class="px-4 py-3">
-                                            <div class="font-medium">
-                                                {{ $book->title }}
-                                            </div>
-
-                                            <div class="text-xs text-zinc-500">
-                                                {{ $book->author }}
-                                            </div>
-                                        </td>
-
-                                        <td class="px-4 py-3">
-                                            {{ $book->isbn }}
-                                        </td>
-
-                                        <td class="px-4 py-3 text-center">
-                                            {{ $book->active_borrowings_count }}
-                                        </td>
-
-                                        <td class="px-4 py-3 text-center">
-                                            {{ $book->available_copies }}
-                                        </td>
-
-                                        <td class="px-4 py-3">
-                                            <form
-                                                method="POST"
-                                                action="{{ route(
-                                                    'books.copies.update',
-                                                    $book
-                                                ) }}"
-                                                class="flex items-end gap-2"
-                                            >
-                                                @csrf
-                                                @method('PATCH')
-
-                                                <div class="w-28">
-                                                    <label
-                                                        for="total-copies-{{ $book->id }}"
-                                                        class="sr-only"
-                                                    >
-                                                        {{ __('Total copies') }}
-                                                    </label>
-
-                                                    <input
-                                                        id="total-copies-{{ $book->id }}"
-                                                        name="total_copies"
-                                                        type="number"
-                                                        min="{{ $book->active_borrowings_count }}"
-                                                        max="10000"
-                                                        value="{{ $book->total_copies }}"
-                                                        required
-                                                        class="w-full rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-white"
-                                                    >
-                                                </div>
-
-                                                <flux:button
-                                                    type="submit"
-                                                    variant="primary"
-                                                    size="sm"
-                                                >
-                                                    {{ __('Update') }}
-                                                </flux:button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td
-                                            colspan="5"
-                                            class="px-4 py-8 text-center
-                                                text-zinc-500"
-                                        >
-                                            {{ __('No books found.') }}
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="mt-4">
-                    {{ $managedBooks->withQueryString()->links() }}
-                </div>
-            </section>
-        @endif
-
         @if (auth()->user()->isStudent())
             @php
                 $borrowLimit = (int) config(
@@ -262,45 +98,85 @@
                 </div>
 
                 @if ($canBorrow)
+                    @php
+                        $availableBookOptions = $availableBooks
+                            ->map(fn ($book) => [
+                                'id' => $book->id,
+                                'title' => $book->title,
+                                'author' => $book->author,
+                                'isbn' => $book->isbn,
+                                'availableCopies' => $book->available_copies,
+                            ])
+                            ->values();
+
+                        $selectedBook = $availableBooks->firstWhere(
+                            'id',
+                            (int) old('book_id')
+                        );
+                    @endphp
+
                     <form
                         method="POST"
                         action="{{ route('borrowings.store') }}"
-                        class="mt-5 flex flex-col gap-3 sm:flex-row"
+                        data-borrow-form
+                        class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-start"
                     >
                         @csrf
 
-                        <label class="sr-only" for="book_id">
-                            Select a book
-                        </label>
-
-                        <select
-                            id="book_id"
-                            name="book_id"
-                            required
-                            class="min-h-10 flex-1 rounded-lg border
-                                   border-zinc-300 bg-white px-3 py-2
-                                   text-sm dark:border-zinc-600
-                                   dark:bg-zinc-800"
+                        <div
+                            data-book-combobox
+                            class="relative min-w-0 flex-1"
                         >
-                            <option value="">Select a book</option>
+                            <label
+                                for="book_search"
+                                class="mb-2 block text-sm font-semibold text-zinc-900 dark:text-white"
+                            >
+                                Search available books
+                            </label>
 
-                            @foreach ($availableBooks as $book)
-                                <option
-                                    value="{{ $book->id }}"
-                                    @selected(
-                                        old('book_id') == $book->id
-                                    )
-                                >
-                                    {{ $book->title }}
-                                    — {{ $book->author }}
-                                    ({{ $book->available_copies }} available)
-                                </option>
-                            @endforeach
-                        </select>
+                            <input
+                                id="book_search"
+                                data-book-search
+                                type="search"
+                                autocomplete="off"
+                                role="combobox"
+                                aria-autocomplete="list"
+                                aria-controls="available-book-results"
+                                aria-expanded="false"
+                                placeholder="Search by title, author or ISBN"
+                                value="{{ $selectedBook ? $selectedBook->title.' — '.$selectedBook->author : '' }}"
+                                class="min-h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition placeholder:text-zinc-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder:text-zinc-400"
+                            >
+
+                            <input
+                                data-book-id
+                                type="hidden"
+                                name="book_id"
+                                value="{{ old('book_id') }}"
+                            >
+
+                            <div
+                                id="available-book-results"
+                                data-book-results
+                                role="listbox"
+                                hidden
+                                class="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+                            ></div>
+
+                            <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                                Search results only include books with at least one available copy.
+                            </p>
+
+                            <script type="application/json" data-book-options>
+                                @json($availableBookOptions)
+                            </script>
+                        </div>
 
                         <flux:button
                             type="submit"
                             variant="primary"
+                            data-borrow-submit
+                            :disabled="$selectedBook === null"
                         >
                             Borrow for 7 days
                         </flux:button>
@@ -323,20 +199,107 @@
             class="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 text-zinc-100 shadow-sm"
         >
             <div class="border-b border-zinc-800 bg-zinc-900 p-5">
-                <flux:heading>
-                    {{ auth()->user()->isLibrarian()
-                        ? 'All borrowing records'
-                        : 'My borrowing records' }}
-                </flux:heading>
+                <div class="flex min-h-28 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <flux:heading size="lg">
+                            {{ auth()->user()->isLibrarian()
+                                ? 'All borrowing records'
+                                : 'My borrowing records' }}
+                        </flux:heading>
+
+                        <flux:text class="mt-1">
+                            {{ auth()->user()->isLibrarian()
+                                ? 'Search, monitor and process current borrowing records.'
+                                : 'Review your current and previous borrowing records.' }}
+                        </flux:text>
+                    </div>
+
+                    @if (auth()->user()->isLibrarian())
+                        <form
+                            method="GET"
+                            action="{{ route('borrowings.index') }}"
+                            data-auto-search-form
+                            class="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-[485px]"
+                        >
+                            <label class="sr-only" for="borrowing-search">
+                                {{ __('Search borrowing records') }}
+                            </label>
+
+                            <div class="relative min-w-0 flex-1">
+                                <svg
+                                    class="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    aria-hidden="true"
+                                >
+                                    <circle cx="11" cy="11" r="6" />
+                                    <path d="m16 16 4 4" />
+                                </svg>
+
+                                <input
+                                    id="borrowing-search"
+                                    data-auto-search-input
+                                    type="search"
+                                    name="borrowing_search"
+                                    value="{{ $borrowingSearch }}"
+                                    placeholder="Search student, book or ISBN"
+                                    autocomplete="off"
+                                    class="min-h-11 w-full rounded-xl border border-zinc-700 bg-zinc-800 py-2 pe-3 ps-10 text-sm text-white shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-400/20"
+                                >
+                            </div>
+
+                            @if ($borrowingSearch !== '')
+                                <flux:button
+                                :href="route('borrowings.index')"
+                                    variant="ghost"
+                                    size="sm"
+                                    wire:navigate
+                                >
+                                    Clear
+                                </flux:button>
+                            @endif
+                        </form>
+                    @endif
+                </div>
             </div>
 
-            @if ($borrowings->isEmpty())
-                <div class="p-10 text-center text-sm text-zinc-500">
-                    No borrowing records found.
-                </div>
-            @else
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
+            {{-- 第二层卡片使借阅记录在 Borrow & Return 页面保持清晰分组。 --}}
+            <div class="p-5">
+                <div
+                    class="overflow-hidden rounded-xl border border-zinc-800
+                           bg-zinc-950 text-zinc-100"
+                >
+                    @if ($borrowings->isEmpty())
+                        <div class="p-10 text-center text-sm text-zinc-500">
+                            No borrowing records found.
+                        </div>
+                    @else
+                        <div class="overflow-x-auto">
+                            <table class="min-w-[980px] w-full table-fixed text-left text-sm">
+                        {{-- 记录表同样使用稳定栏宽，和上方 Book Copies table 的视觉节奏一致。 --}}
+                        @if (auth()->user()->isLibrarian())
+                            <colgroup>
+                                <col class="w-[11%]">
+                                <col class="w-[20%]">
+                                <col class="w-[14%]">
+                                <col class="w-[14%]">
+                                <col class="w-[13%]">
+                                <col class="w-[10%]">
+                                <col class="w-[18%]">
+                            </colgroup>
+                        @else
+                            <colgroup>
+                                <col class="w-[25%]">
+                                <col class="w-[16%]">
+                                <col class="w-[16%]">
+                                <col class="w-[16%]">
+                                <col class="w-[11%]">
+                                <col class="w-[16%]">
+                            </colgroup>
+                        @endif
+
                         <thead
                             class="border-b border-zinc-800 bg-zinc-900 text-zinc-200"
                         >
@@ -382,20 +345,20 @@
                                         $borrowing->status
                                     ) {
                                         \App\Models\Borrowing::STATUS_BORROWED =>
-                                            'bg-blue-100 text-blue-800',
+                                            'border border-blue-400/25 bg-blue-500/15 text-blue-700 dark:text-blue-300',
 
                                         \App\Models\Borrowing::STATUS_OVERDUE,
                                         \App\Models\Borrowing::STATUS_FEE_UNPAID =>
-                                            'bg-red-100 text-red-800',
+                                            'border border-red-400/25 bg-red-500/15 text-red-700 dark:text-red-300',
 
                                         \App\Models\Borrowing::STATUS_PAYMENT_PENDING =>
-                                            'bg-amber-100 text-amber-800',
+                                            'border border-amber-400/25 bg-amber-500/15 text-amber-700 dark:text-amber-300',
 
                                         \App\Models\Borrowing::STATUS_COMPLETED =>
-                                            'bg-green-100 text-green-800',
+                                            'border border-emerald-400/25 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
 
                                         default =>
-                                            'bg-zinc-100 text-zinc-800',
+                                            'border border-zinc-400/25 bg-zinc-500/15 text-zinc-700 dark:text-zinc-300',
                                     };
                                 @endphp
 
@@ -459,12 +422,15 @@
                                                         @csrf
                                                         @method('PATCH')
 
-                                                        <flux:button
+                                                        <button
                                                             type="submit"
-                                                            size="sm"
+                                                            class="inline-flex min-h-10 items-center justify-center rounded-lg border border-violet-400/25
+                                                                   bg-violet-500/15 px-4 text-sm font-semibold text-violet-700 transition
+                                                                   hover:bg-violet-500/25 focus:outline-none focus:ring-2 focus:ring-violet-400/40
+                                                                   dark:text-violet-200"
                                                         >
                                                             Return book
-                                                        </flux:button>
+                                                        </button>
                                                     </form>
                                                 @endcan
                                             @endif
@@ -474,37 +440,14 @@
                                                 \App\Models\Borrowing::STATUS_FEE_UNPAID
                                             )
                                                 @can('submitPayment', $borrowing)
-                                                    <form
-                                                        method="POST"
-                                                        action="{{ route(
-                                                            'borrowings.payment.submit',
-                                                            $borrowing
-                                                        ) }}"
-                                                        class="flex flex-col gap-2"
+                                                    <flux:button
+                                                        :href="route('payments.show', $borrowing)"
+                                                        size="sm"
+                                                        variant="primary"
+                                                        wire:navigate
                                                     >
-                                                        @csrf
-
-                                                        <input
-                                                            type="text"
-                                                            name="payment_reference"
-                                                            required
-                                                            minlength="6"
-                                                            maxlength="100"
-                                                            pattern="[A-Za-z0-9][A-Za-z0-9 _-]*"
-                                                            placeholder="Payment reference"
-                                                            class="rounded-lg border
-                                                                   border-zinc-300
-                                                                   px-3 py-2 text-sm"
-                                                        >
-
-                                                        <flux:button
-                                                            type="submit"
-                                                            size="sm"
-                                                            variant="primary"
-                                                        >
-                                                            Submit payment
-                                                        </flux:button>
-                                                    </form>
+                                                        Pay overdue fee
+                                                    </flux:button>
                                                 @endcan
                                             @endif
 
@@ -560,9 +503,14 @@
                                                 @endcan
 
                                                 @can('submitPayment', $borrowing)
-                                                    <span class="text-xs text-amber-700">
-                                                        Awaiting librarian approval
-                                                    </span>
+                                                    <flux:button
+                                                        :href="route('payments.show', $borrowing)"
+                                                        size="sm"
+                                                        variant="filled"
+                                                        wire:navigate
+                                                    >
+                                                        View payment
+                                                    </flux:button>
                                                 @endcan
                                             @endif
                                         </div>
@@ -570,13 +518,204 @@
                                 </tr>
                             @endforeach
                         </tbody>
-                    </table>
-                </div>
+                            </table>
+                        </div>
 
-                <div class="border-t border-zinc-200 p-4 dark:border-zinc-700">
-                    {{ $borrowings->links() }}
+                        <div class="border-t border-zinc-800 p-4">
+                            {{ $borrowings->links() }}
+                        </div>
+                    @endif
                 </div>
-            @endif
+            </div>
         </section>
     </div>
+
+    <script>
+        (() => {
+            const initializeBookSearch = (combobox) => {
+                if (combobox.dataset.initialized === 'true') {
+                    return;
+                }
+
+                combobox.dataset.initialized = 'true';
+
+                const form = combobox.closest('[data-borrow-form]');
+                const searchInput = combobox.querySelector('[data-book-search]');
+                const bookIdInput = combobox.querySelector('[data-book-id]');
+                const results = combobox.querySelector('[data-book-results]');
+                const optionsElement = combobox.querySelector('[data-book-options]');
+                const submitButton = form?.querySelector('[data-borrow-submit]');
+
+                if (!form || !searchInput || !bookIdInput || !results || !optionsElement || !submitButton) {
+                    return;
+                }
+
+                let books = [];
+                let matchingBooks = [];
+
+                try {
+                    books = JSON.parse(optionsElement.textContent);
+                } catch (error) {
+                    console.error('Unable to load available book search options.', error);
+                    return;
+                }
+
+                const hideResults = () => {
+                    results.hidden = true;
+                    searchInput.setAttribute('aria-expanded', 'false');
+                };
+
+                const chooseBook = (book) => {
+                    searchInput.value = `${book.title} — ${book.author} (${book.availableCopies} available)`;
+                    bookIdInput.value = String(book.id);
+                    searchInput.setCustomValidity('');
+                    submitButton.disabled = false;
+                    hideResults();
+                };
+
+                const renderResults = () => {
+                    results.replaceChildren();
+
+                    if (matchingBooks.length === 0) {
+                        const emptyMessage = document.createElement('p');
+                        emptyMessage.className = 'px-3 py-4 text-sm text-zinc-500 dark:text-zinc-400';
+                        emptyMessage.textContent = 'No available books match this search.';
+                        results.append(emptyMessage);
+                    } else {
+                        matchingBooks.forEach((book) => {
+                            const option = document.createElement('button');
+                            const title = document.createElement('span');
+                            const detail = document.createElement('span');
+
+                            option.type = 'button';
+                            option.setAttribute('role', 'option');
+                            option.className = 'flex w-full flex-col rounded-lg px-3 py-2 text-left transition hover:bg-violet-500/10 focus:bg-violet-500/10 focus:outline-none';
+
+                            title.className = 'font-semibold text-zinc-900 dark:text-white';
+                            title.textContent = book.title;
+
+                            detail.className = 'mt-0.5 text-xs text-zinc-500 dark:text-zinc-400';
+                            detail.textContent = `${book.author} · ISBN ${book.isbn} · ${book.availableCopies} available`;
+
+                            option.append(title, detail);
+                            option.addEventListener('click', () => chooseBook(book));
+                            results.append(option);
+                        });
+                    }
+
+                    results.hidden = false;
+                    searchInput.setAttribute('aria-expanded', 'true');
+                };
+
+                const searchBooks = () => {
+                    const searchTerm = searchInput.value.trim().toLocaleLowerCase();
+
+                    matchingBooks = books
+                        .filter((book) => {
+                            if (searchTerm === '') {
+                                return true;
+                            }
+
+                            return [book.title, book.author, book.isbn]
+                                .join(' ')
+                                .toLocaleLowerCase()
+                                .includes(searchTerm);
+                        })
+                        .slice(0, 8);
+
+                    renderResults();
+                };
+
+                searchInput.addEventListener('focus', searchBooks);
+
+                searchInput.addEventListener('input', () => {
+                    bookIdInput.value = '';
+                    submitButton.disabled = true;
+                    searchInput.setCustomValidity('Please select a book from the search results.');
+                    searchBooks();
+                });
+
+                searchInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        hideResults();
+                        return;
+                    }
+
+                    if (event.key === 'Enter' && matchingBooks[0]) {
+                        event.preventDefault();
+                        chooseBook(matchingBooks[0]);
+                    }
+                });
+
+                form.addEventListener('submit', (event) => {
+                    if (bookIdInput.value !== '') {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    searchInput.setCustomValidity('Please select a book from the search results.');
+                    searchInput.reportValidity();
+                    searchInput.focus();
+                });
+
+                document.addEventListener('click', (event) => {
+                    if (!combobox.contains(event.target)) {
+                        hideResults();
+                    }
+                });
+            };
+
+            const initializeAllBookSearches = () => {
+                document
+                    .querySelectorAll('[data-book-combobox]')
+                    .forEach(initializeBookSearch);
+            };
+
+            const initializeAutoSearch = (form) => {
+                if (form.dataset.initialized === 'true') {
+                    return;
+                }
+
+                const input = form.querySelector('[data-auto-search-input]');
+
+                if (!input) {
+                    return;
+                }
+
+                form.dataset.initialized = 'true';
+
+                let submitTimer;
+
+                input.addEventListener('input', () => {
+                    window.clearTimeout(submitTimer);
+
+                    submitTimer = window.setTimeout(() => {
+                        form.requestSubmit();
+                    }, 350);
+                });
+
+                form.addEventListener('submit', () => {
+                    window.clearTimeout(submitTimer);
+                });
+            };
+
+            const initializeAllAutoSearches = () => {
+                document
+                    .querySelectorAll('[data-auto-search-form]')
+                    .forEach(initializeAutoSearch);
+            };
+
+            const initializeBorrowingPage = () => {
+                initializeAllBookSearches();
+                initializeAllAutoSearches();
+            };
+
+            if (!window.__smartLibraryBookSearchBound) {
+                window.__smartLibraryBookSearchBound = true;
+                document.addEventListener('livewire:navigated', initializeBorrowingPage);
+            }
+
+            initializeBorrowingPage();
+        })();
+    </script>
 </x-layouts::app>

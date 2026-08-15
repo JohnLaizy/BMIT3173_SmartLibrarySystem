@@ -70,6 +70,33 @@ select:focus[data-flux-control] {
 }
 
 /*
+ * 底部向下提示使用小幅度的中间轻推动画。
+ * 不使用 Tailwind animate-bounce，避免箭头看起来从圆形按钮外跳入。
+ */
+@keyframes app-scroll-hint-nudge {
+    0%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.78;
+    }
+
+    50% {
+        transform: translateY(3px);
+        opacity: 1;
+    }
+}
+
+.app-scroll-hint-arrow {
+    animation: app-scroll-hint-nudge 1.25s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-scroll-hint-arrow {
+        animation: none;
+    }
+}
+
+/*
  * 确保 Flux input 在 Dark Mode 中有足够对比度。
  * 防止已有 Name / Email 因文字颜色太暗而看起来像空白。
  */

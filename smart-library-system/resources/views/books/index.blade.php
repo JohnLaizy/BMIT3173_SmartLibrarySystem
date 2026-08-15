@@ -5,7 +5,7 @@
     class="mx-auto flex w-full max-w-7xl flex-1
            flex-col gap-6 px-2 sm:px-4"
 >
-@if (session('success'))
+    @if (session('success'))
         <div
             role="status"
             class="flex items-center gap-3 rounded-xl
@@ -25,6 +25,34 @@
             {{ session('success') }}
         </div>
     @endif
+
+    @if (session('error'))
+        <div
+            role="alert"
+            class="flex items-center gap-3 rounded-xl border border-red-500/30
+                   bg-red-500/10 px-4 py-3 text-sm font-medium text-red-700
+                   dark:text-red-300"
+        >
+            <span
+                class="flex size-6 items-center justify-center rounded-full bg-red-500/20"
+                aria-hidden="true"
+            >
+                !
+            </span>
+
+            {{ session('error') }}
+        </div>
+    @endif
+
+    @error('total_copies')
+        <div
+            role="alert"
+            class="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3
+                   text-sm font-medium text-red-700 dark:text-red-300"
+        >
+            {{ $message }}
+        </div>
+    @enderror
 
     {{-- 页面标题 --}}
     <header
@@ -80,7 +108,7 @@
 
     {{-- 搜索 --}}
     <section
-        class="overflow-hidden rounded-2xl
+        class="relative z-20 overflow-visible rounded-2xl
                border border-zinc-200 bg-white shadow-sm
                dark:border-zinc-700 dark:bg-zinc-900"
     >
@@ -90,35 +118,58 @@
             <form
                 method="GET"
                 action="{{ route('books.index') }}"
-                class="flex flex-col gap-3 sm:flex-row"
+                data-book-search-form
+                class="flex flex-col gap-3 sm:flex-row sm:items-center"
             >
 
-                <div class="flex-1">
+                <div class="relative flex-1">
+                    <svg
+                        class="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-zinc-400"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        aria-hidden="true"
+                    >
+                        <circle cx="11" cy="11" r="6" />
+                        <path d="m16 16 4 4" />
+                    </svg>
 
                     <input
-                        type="text"
+                        id="book-catalogue-search"
+                        data-book-search-input
+                        type="search"
                         name="search"
                         value="{{ request('search') }}"
-                        placeholder="Search by ISBN, title, author, or category..."
-                        class="w-full rounded-xl border border-zinc-300
-                               bg-white px-4 py-2.5 text-sm
-                               text-zinc-900 outline-none
-                               transition focus:border-blue-500
-                               focus:ring-2 focus:ring-blue-500/20
-                               dark:border-zinc-700
-                               dark:bg-zinc-800
-                               dark:text-zinc-100
-                               dark:placeholder-zinc-500"
+                        autocomplete="off"
+                        aria-describedby="book-search-hint"
+                        aria-controls="book-search-suggestions"
+                        aria-expanded="false"
+                        placeholder="Search any word in a title, author, ISBN or category"
+                        class="min-h-12 w-full rounded-2xl border border-zinc-300 bg-white py-3 pe-4 ps-12 text-sm
+                               text-zinc-900 shadow-sm outline-none transition placeholder:text-zinc-500
+                               focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700
+                               dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-400"
                     >
 
-                </div>
+                    <span
+                        class="pointer-events-none absolute end-4 top-1/2 hidden -translate-y-1/2 rounded-full
+                               bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-500 dark:bg-zinc-700
+                               dark:text-zinc-300 md:inline"
+                    >
+                        Live search
+                    </span>
 
-                <flux:button
-                    type="submit"
-                    variant="primary"
-                >
-                    Search
-                </flux:button>
+                    <div
+                        id="book-search-suggestions"
+                        data-book-search-suggestions
+                        role="listbox"
+                        aria-label="Book search suggestions"
+                        hidden
+                        class="absolute z-30 mt-2 w-full overflow-hidden rounded-2xl border border-zinc-200
+                               bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+                    ></div>
+                </div>
 
                 @if(request('search'))
 
@@ -133,6 +184,13 @@
                 @endif
 
             </form>
+
+            <p
+                id="book-search-hint"
+                class="mt-3 text-xs text-zinc-500 dark:text-zinc-400"
+            >
+                Suggestions update while you type. Press Enter to show the complete result list.
+            </p>
 
         </div>
 
@@ -167,7 +225,9 @@
                     class="mt-1 text-sm
                            text-zinc-500 dark:text-zinc-400"
                 >
-                    All registered physical and digital books.
+                    {{ auth()->user()->isLibrarian()
+                        ? 'Manage catalogue details and physical book copies.'
+                        : 'Browse registered physical and digital books.' }}
                 </p>
 
             </div>
@@ -235,7 +295,26 @@
             {{-- Book Table --}}
             <div class="overflow-x-auto">
 
-                <table class="w-full min-w-[900px] text-sm">
+                <table
+                    @class([
+                        'w-full table-fixed text-sm',
+                        'min-w-[1180px]' => auth()->user()->isLibrarian(),
+                        'min-w-[900px]' => ! auth()->user()->isLibrarian(),
+                    ])
+                >
+                    @if (auth()->user()->isLibrarian())
+                        <colgroup>
+                            <col class="w-[10%]">
+                            <col class="w-[15%]">
+                            <col class="w-[12%]">
+                            <col class="w-[10%]">
+                            <col class="w-[8%]">
+                            <col class="w-[12%]">
+                            <col class="w-[8%]">
+                            <col class="w-[10%]">
+                            <col class="w-[15%]">
+                        </colgroup>
+                    @endif
 
                     <thead
                         class="bg-zinc-100 text-zinc-700
@@ -268,6 +347,20 @@
                             <th class="px-6 py-4 text-left">
                                 Availability
                             </th>
+
+                            @if (auth()->user()->isLibrarian())
+                                <th class="px-4 py-4 text-center">
+                                    Borrowed
+                                </th>
+
+                                <th class="px-4 py-4 text-center">
+                                    Total Copies
+                                </th>
+
+                                <th class="px-4 py-4 text-center">
+                                    Actions
+                                </th>
+                            @endif
 
                         </tr>
 
@@ -429,6 +522,67 @@
 
                                 </td>
 
+                                @if (auth()->user()->isLibrarian())
+                                    <td class="px-4 py-5 text-center">
+                                        @if ($book->type === 'physical')
+                                            {{ $book->active_borrowings_count }}
+                                        @else
+                                            <span class="text-zinc-500 dark:text-zinc-400">—</span>
+                                        @endif
+                                    </td>
+
+                                    <td class="px-4 py-5 text-center">
+                                        @if ($book->type === 'physical')
+                                            <form
+                                                id="book-copy-form-{{ $book->id }}"
+                                                method="POST"
+                                                action="{{ route('books.copies.update', $book) }}"
+                                            >
+                                                @csrf
+                                                @method('PATCH')
+
+                                                <label
+                                                    for="total-copies-{{ $book->id }}"
+                                                    class="sr-only"
+                                                >
+                                                    Total copies for {{ $book->title }}
+                                                </label>
+
+                                                <div class="flex justify-center">
+                                                    <input
+                                                        id="total-copies-{{ $book->id }}"
+                                                        name="total_copies"
+                                                        type="number"
+                                                        min="{{ $book->active_borrowings_count }}"
+                                                        max="10000"
+                                                        value="{{ $book->total_copies }}"
+                                                        required
+                                                        class="w-24 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-center text-sm text-zinc-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                                                    >
+                                                </div>
+                                            </form>
+                                        @else
+                                            <span class="text-zinc-500 dark:text-zinc-400">Digital</span>
+                                        @endif
+                                    </td>
+
+                                    <td class="px-5 py-5 text-center">
+                                        @if ($book->type === 'physical')
+                                            <div class="flex justify-center">
+                                                <button
+                                                    type="submit"
+                                                    form="book-copy-form-{{ $book->id }}"
+                                                    class="inline-flex min-h-11 min-w-36 items-center justify-center whitespace-nowrap rounded-xl border border-blue-500/25 bg-blue-500/10 px-5 text-sm font-semibold text-blue-700 transition hover:bg-blue-500/20 focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:text-blue-300"
+                                                >
+                                                    Update copies
+                                                </button>
+                                            </div>
+                                        @else
+                                            <span class="text-zinc-500 dark:text-zinc-400">—</span>
+                                        @endif
+                                    </td>
+                                @endif
+
                             </tr>
 
                         @endforeach
@@ -457,5 +611,157 @@
     </section>
 
 </div>
+
+<script data-navigate-once>
+    (() => {
+        if (window.smartLibraryBookSearchInitialised) {
+            return;
+        }
+
+        window.smartLibraryBookSearchInitialised = true;
+
+        let searchTimer;
+        let activeRequest;
+
+        const closeSuggestions = (input, suggestions) => {
+            suggestions.replaceChildren();
+            suggestions.hidden = true;
+            input.setAttribute('aria-expanded', 'false');
+        };
+
+        const addSuggestion = (suggestions, input, book) => {
+            const option = document.createElement('button');
+            const title = String(book.title ?? 'Untitled book');
+            const author = String(book.author ?? 'Unknown author');
+            const isbn = String(book.isbn ?? 'No ISBN');
+
+            option.type = 'button';
+            option.role = 'option';
+            option.className = 'flex w-full items-center justify-between gap-4 border-b border-zinc-100 px-4 py-3 text-start transition last:border-b-0 hover:bg-blue-500/10 focus:bg-blue-500/10 focus:outline-none dark:border-zinc-800';
+
+            const details = document.createElement('span');
+            details.className = 'min-w-0';
+
+            const bookTitle = document.createElement('span');
+            bookTitle.className = 'block truncate text-sm font-semibold text-zinc-900 dark:text-white';
+            bookTitle.textContent = title;
+
+            const bookMeta = document.createElement('span');
+            bookMeta.className = 'mt-0.5 block truncate text-xs text-zinc-500 dark:text-zinc-400';
+            bookMeta.textContent = `${author} · ${isbn}`;
+
+            const resultType = document.createElement('span');
+            resultType.className = 'shrink-0 rounded-full bg-blue-500/10 px-2 py-1 text-[11px] font-semibold text-blue-700 dark:text-blue-300';
+            resultType.textContent = String(book.type ?? 'book').replace(/^./, (letter) => letter.toUpperCase());
+
+            details.append(bookTitle, bookMeta);
+            option.append(details, resultType);
+
+            option.addEventListener('click', () => {
+                input.value = title;
+                closeSuggestions(input, suggestions);
+                input.focus();
+            });
+
+            suggestions.append(option);
+        };
+
+        document.addEventListener('input', (event) => {
+            const input = event.target;
+
+            if (!(input instanceof HTMLInputElement) || !input.matches('[data-book-search-input]')) {
+                return;
+            }
+
+            const form = input.closest('form[data-book-search-form]');
+            const suggestions = form?.querySelector('[data-book-search-suggestions]');
+            const search = input.value.trim();
+
+            if (!(form instanceof HTMLFormElement) || !(suggestions instanceof HTMLElement)) {
+                return;
+            }
+
+            window.clearTimeout(searchTimer);
+
+            if (activeRequest) {
+                activeRequest.abort();
+            }
+
+            if (search === '') {
+                closeSuggestions(input, suggestions);
+
+                return;
+            }
+
+            searchTimer = window.setTimeout(async () => {
+                activeRequest = new AbortController();
+
+                const url = new URL(form.action, window.location.origin);
+                url.searchParams.set('search', search);
+
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            Accept: 'application/json',
+                        },
+                        signal: activeRequest.signal,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Unable to fetch book suggestions.');
+                    }
+
+                    const payload = await response.json();
+                    const books = Array.isArray(payload.data?.data)
+                        ? payload.data.data.slice(0, 6)
+                        : [];
+
+                    // 忽略旧请求的结果，避免较慢的请求覆盖最新输入。
+                    if (input.value.trim() !== search) {
+                        return;
+                    }
+
+                    suggestions.replaceChildren();
+
+                    if (books.length === 0) {
+                        const empty = document.createElement('p');
+                        empty.className = 'px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400';
+                        empty.textContent = 'No matching books found.';
+                        suggestions.append(empty);
+                    } else {
+                        books.forEach((book) => {
+                            addSuggestion(suggestions, input, book);
+                        });
+                    }
+
+                    suggestions.hidden = false;
+                    input.setAttribute('aria-expanded', 'true');
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        closeSuggestions(input, suggestions);
+                    }
+                }
+            }, 220);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') {
+                return;
+            }
+
+            const input = event.target;
+
+            if (!(input instanceof HTMLInputElement) || !input.matches('[data-book-search-input]')) {
+                return;
+            }
+
+            const suggestions = input.closest('form[data-book-search-form]')?.querySelector('[data-book-search-suggestions]');
+
+            if (suggestions instanceof HTMLElement) {
+                closeSuggestions(input, suggestions);
+            }
+        });
+    })();
+</script>
 
 </x-layouts::app>
