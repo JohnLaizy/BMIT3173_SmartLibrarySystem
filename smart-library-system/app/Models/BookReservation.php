@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property CarbonImmutable|null $expires_at
+ */
 #[Fillable([
     'user_id',
     'book_id',
@@ -22,8 +25,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class BookReservation extends Model
 {
-    use HasFactory;
-
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_APPROVED = 'approved';
@@ -52,6 +53,9 @@ class BookReservation extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function student(): BelongsTo
     {
         return $this->belongsTo(
@@ -60,11 +64,17 @@ class BookReservation extends Model
         );
     }
 
+    /**
+     * @return BelongsTo<Book, $this>
+     */
     public function book(): BelongsTo
     {
         return $this->belongsTo(Book::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(
@@ -73,6 +83,10 @@ class BookReservation extends Model
         );
     }
 
+    /**
+     * @param  Builder<BookReservation>  $query
+     * @return Builder<BookReservation>
+     */
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereIn(
@@ -81,6 +95,10 @@ class BookReservation extends Model
         );
     }
 
+    /**
+     * @param  Builder<BookReservation>  $query
+     * @return Builder<BookReservation>
+     */
     public function scopePending(Builder $query): Builder
     {
         return $query->where(
@@ -89,6 +107,10 @@ class BookReservation extends Model
         );
     }
 
+    /**
+     * @param  Builder<BookReservation>  $query
+     * @return Builder<BookReservation>
+     */
     public function scopeApproved(Builder $query): Builder
     {
         return $query

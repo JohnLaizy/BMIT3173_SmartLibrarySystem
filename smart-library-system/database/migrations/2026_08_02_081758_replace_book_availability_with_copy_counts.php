@@ -8,17 +8,30 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * The original books-table migration in this project now creates the
+     * copy-count columns directly. Keep this migration safe for a fresh test
+     * database as well as older databases that still have `is_available`.
      */
     public function up(): void
     {
-        Schema::table('books', function (Blueprint $table) {
-            $table->unsignedInteger('total_copies')->default(1);
-            $table->unsignedInteger('available_copies')->default(1);
-        });
+        if (! Schema::hasColumn('books', 'total_copies')) {
+            Schema::table('books', function (Blueprint $table): void {
+                $table->unsignedInteger('total_copies')->default(1);
+            });
+        }
 
-        Schema::table('books', function (Blueprint $table) {
-            $table->dropColumn('is_available');
-        });
+        if (! Schema::hasColumn('books', 'available_copies')) {
+            Schema::table('books', function (Blueprint $table): void {
+                $table->unsignedInteger('available_copies')->default(1);
+            });
+        }
+
+        if (Schema::hasColumn('books', 'is_available')) {
+            Schema::table('books', function (Blueprint $table): void {
+                $table->dropColumn('is_available');
+            });
+        }
     }
 
     /**
@@ -26,15 +39,25 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('books', function (Blueprint $table) {
-            $table->boolean('is_available')->default(true);
-        });
+        if (! Schema::hasColumn('books', 'is_available')) {
+            Schema::table('books', function (Blueprint $table): void {
+                $table->boolean('is_available')->default(true);
+            });
+        }
 
-        Schema::table('books', function (Blueprint $table) {
-            $table->dropColumn([
-                'total_copies',
-                'available_copies',
-            ]);
-        });
+        $columnsToDrop = array_values(array_filter([
+            Schema::hasColumn('books', 'total_copies')
+                ? 'total_copies'
+                : null,
+            Schema::hasColumn('books', 'available_copies')
+                ? 'available_copies'
+                : null,
+        ]));
+
+        if ($columnsToDrop !== []) {
+            Schema::table('books', function (Blueprint $table) use ($columnsToDrop): void {
+                $table->dropColumn($columnsToDrop);
+            });
+        }
     }
 };

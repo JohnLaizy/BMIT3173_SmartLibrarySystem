@@ -80,12 +80,13 @@
             ->implode(', ');
 
         /*
-         * 人数只在 Floor 和 Facility 均已选择后开放。
+         * 人数只在 Room type 和 Floor 均已选择后开放。
+         * Facility 是独立条件，因此无需先选 Facility。
          * $capacityOptions 已由 Controller 从数据库计算。
          */
         $canChooseCapacity = filled(
             $filters['location'] ?? null
-        ) && $selectedFacilities !== [];
+        ) && filled($filters['type'] ?? null);
     @endphp
 
     <div
@@ -468,7 +469,7 @@
                                    dark:bg-zinc-800 dark:text-white"
                         >
                             <option value="">
-                                {{ $canChooseCapacity ? 'Any size' : 'Choose floor and facility first' }}
+                                {{ $canChooseCapacity ? 'Any size' : 'Choose room type and floor first' }}
                             </option>
 
                             @foreach ($capacityOptions as $capacityOption)

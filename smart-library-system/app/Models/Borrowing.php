@@ -2,28 +2,49 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\States\Borrowing\BorrowedState;
 use App\States\Borrowing\BorrowingState;
 use App\States\Borrowing\CompletedState;
 use App\States\Borrowing\FeeUnpaidState;
 use App\States\Borrowing\OverdueState;
 use App\States\Borrowing\PaymentPendingState;
+use Carbon\CarbonImmutable;
+use Database\Factories\BorrowingFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use LogicException;
 
+/**
+ * @property int<1, max> $id
+ * @property int<1, max> $user_id
+ * @property int<1, max> $book_id
+ * @property string $status
+ * @property CarbonImmutable $borrowed_at
+ * @property CarbonImmutable $due_at
+ * @property CarbonImmutable|null $returned_at
+ * @property int<0, max> $overdue_fee_cents
+ * @property string|null $payment_reference
+ * @property string|null $payment_method
+ * @property CarbonImmutable|null $payment_started_at
+ * @property CarbonImmutable|null $payment_submitted_at
+ * @property CarbonImmutable|null $payment_approved_at
+ * @property int<1, max>|null $payment_approved_by
+ */
 #[Fillable([
     'user_id',
     'book_id',
     'status',
     'borrowed_at',
     'due_at',
+    'payment_method',
 ])]
 class Borrowing extends Model
 {
+    /** @use HasFactory<BorrowingFactory> */
     use HasFactory;
 
     // states
@@ -52,19 +73,29 @@ class Borrowing extends Model
             'overdue_fee_cents' => 'integer',
             'payment_submitted_at' => 'immutable_datetime',
             'payment_approved_at' => 'immutable_datetime',
+            'payment_started_at' => 'immutable_datetime',
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function student(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * @return BelongsTo<Book, $this>
+     */
     public function book(): BelongsTo
     {
         return $this->belongsTo(Book::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function paymentApprover(): BelongsTo
     {
         return $this->belongsTo(
@@ -73,11 +104,27 @@ class Borrowing extends Model
         );
     }
 
+    /**
+     * @return HasMany<PaymentAudit, $this>
+     */
+    public function paymentAudits(): HasMany
+    {
+        return $this->hasMany(PaymentAudit::class);
+    }
+
+    /**
+     * @param  Builder<Borrowing>  $query
+     * @return Builder<Borrowing>
+     */
     public function scopeActiveCopies(Builder $query): Builder
     {
         return $query->whereNull('returned_at');
     }
 
+    /**
+     * @param  Builder<Borrowing>  $query
+     * @return Builder<Borrowing>
+     */
     public function scopeUnresolvedOverdue(Builder $query): Builder
     {
         return $query->whereIn(
@@ -89,25 +136,19 @@ class Borrowing extends Model
     public function state(): BorrowingState
     {
         return match ($this->status) {
-            self::STATUS_BORROWED =>
-                new BorrowedState($this),
+            self::STATUS_BORROWED => new BorrowedState($this),
 
-            self::STATUS_OVERDUE =>
-                new OverdueState($this),
+            self::STATUS_OVERDUE => new OverdueState($this),
 
-            self::STATUS_FEE_UNPAID =>
-                new FeeUnpaidState($this),
+            self::STATUS_FEE_UNPAID => new FeeUnpaidState($this),
 
-            self::STATUS_PAYMENT_PENDING =>
-                new PaymentPendingState($this),
+            self::STATUS_PAYMENT_PENDING => new PaymentPendingState($this),
 
-            self::STATUS_COMPLETED =>
-                new CompletedState($this),
+            self::STATUS_COMPLETED => new CompletedState($this),
 
-            default =>
-                throw new LogicException(
-                    'Unknown borrowing state.'
-                ),
+            default => throw new LogicException(
+                'Unknown borrowing state.'
+            ),
         };
     }
 }

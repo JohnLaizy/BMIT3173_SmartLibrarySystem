@@ -13,18 +13,20 @@ use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
-use Illuminate\Support\Facades\DB;
 
 class BorrowingController extends Controller
 {
     public function index(Request $request): View
     {
         $user = $this->authenticatedUser($request);
+
+        $borrowingSearch = trim((string) $request->query('borrowing_search', ''));
 
         Gate::authorize(
             'viewAny',
@@ -44,16 +46,31 @@ class BorrowingController extends Controller
                 'user_id',
                 $user->id
             );
+        } elseif ($borrowingSearch !== '') {
+            $borrowingsQuery->where(function ($query) use ($borrowingSearch): void {
+                $query
+                    ->whereHas('student', function ($studentQuery) use ($borrowingSearch): void {
+                        $studentQuery
+                            ->where('name', 'like', "%{$borrowingSearch}%")
+                            ->orWhere('email', 'like', "%{$borrowingSearch}%");
+                    })
+                    ->orWhereHas('book', function ($bookQuery) use ($borrowingSearch): void {
+                        $bookQuery
+                            ->where('title', 'like', "%{$borrowingSearch}%")
+                            ->orWhere('author', 'like', "%{$borrowingSearch}%")
+                            ->orWhere('isbn', 'like', "%{$borrowingSearch}%");
+                    });
+            });
         }
 
         $borrowings = $borrowingsQuery
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
 
         $availableBooks = $user->isStudent()
             ? Book::query()
                 ->where('available_copies', '>', 0)
                 ->orderBy('title')
-                ->limit(50)
                 ->get()
             : collect();
 
@@ -71,27 +88,12 @@ class BorrowingController extends Controller
                 ->exists()
             : false;
 
-        $managedBooks = $user->isLibrarian()
-        ? Book::query()
-            ->withCount([
-                'borrowings as active_borrowings_count' =>
-                    fn ($query) => $query
-                        ->whereNull('returned_at'),
-            ])
-            ->orderBy('title')
-            ->paginate(
-                perPage: 10,
-                pageName: 'books_page'
-            )
-        : null;
-
         return view('borrowings.index', [
             'borrowings' => $borrowings,
             'availableBooks' => $availableBooks,
             'activeCopyCount' => $activeCopyCount,
-            'hasUnresolvedOverdue' =>
-                $hasUnresolvedOverdue,
-            'managedBooks' => $managedBooks,
+            'hasUnresolvedOverdue' => $hasUnresolvedOverdue,
+            'borrowingSearch' => $borrowingSearch,
         ]);
     }
 
@@ -219,7 +221,7 @@ class BorrowingController extends Controller
         $user = $request->user();
 
         if (! $user instanceof User) {
-            throw new AuthorizationException();
+            throw new AuthorizationException;
         }
 
         return $user;
@@ -243,12 +245,10 @@ class BorrowingController extends Controller
             Log::warning(
                 'Borrowing request rejected by a business rule.',
                 [
-                    'user_id' =>
-                        $request->user()
-                            ?->getAuthIdentifier(),
+                    'user_id' => $request->user()
+                        ?->getAuthIdentifier(),
 
-                    'reason' =>
-                        $exception->getMessage(),
+                    'reason' => $exception->getMessage(),
                 ]
             );
 
@@ -264,9 +264,8 @@ class BorrowingController extends Controller
                 [
                     'reference' => $reference,
 
-                    'user_id' =>
-                        $request->user()
-                            ?->getAuthIdentifier(),
+                    'user_id' => $request->user()
+                        ?->getAuthIdentifier(),
 
                     'exception' => $exception,
                 ]
@@ -334,8 +333,7 @@ class BorrowingController extends Controller
                         $lockedBook->update([
                             'total_copies' => $newTotal,
 
-                            'available_copies' =>
-                                $newTotal - $activeBorrowings,
+                            'available_copies' => $newTotal - $activeBorrowings,
                         ]);
 
                         Log::info(
@@ -343,8 +341,7 @@ class BorrowingController extends Controller
                             [
                                 'book_id' => $lockedBook->id,
                                 'total_copies' => $newTotal,
-                                'available_copies' =>
-                                    $newTotal - $activeBorrowings,
+                                'available_copies' => $newTotal - $activeBorrowings,
                             ]
                         );
                     },

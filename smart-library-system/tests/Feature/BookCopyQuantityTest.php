@@ -12,6 +12,34 @@ class BookCopyQuantityTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_librarian_manages_physical_copies_from_book_management(): void
+    {
+        $librarian = User::factory()->create([
+            'role' => User::ROLE_LIBRARIAN,
+        ]);
+
+        Book::query()->create([
+            'title' => 'The Pragmatic Programmer',
+            'author' => 'Andrew Hunt',
+            'isbn' => '9780135957059',
+            'type' => 'physical',
+            'total_copies' => 3,
+            'available_copies' => 3,
+        ]);
+
+        $this
+            ->actingAs($librarian)
+            ->get(route('books.index'))
+            ->assertOk()
+            ->assertSee('Total Copies')
+            ->assertSee('Update copies');
+
+        $this
+            ->get(route('borrowings.index'))
+            ->assertOk()
+            ->assertDontSee('Manage Book Copies');
+    }
+
     public function test_librarian_can_increase_book_quantity(): void
     {
         $librarian = User::factory()->create([

@@ -17,13 +17,20 @@ class PaymentPendingState extends BorrowingState
         User $librarian,
         CarbonInterface $approvedAt
     ): void {
+        $librarianId = $librarian->id;
+
+        if ($librarianId < 1) {
+            throw new \LogicException(
+                'The approving librarian must be stored before approval.'
+            );
+        }
+
         $this->borrowing->setAttribute(
             'payment_approved_at',
             $approvedAt
         );
-        
-        $this->borrowing->payment_approved_by =
-            $librarian->id;
+
+        $this->borrowing->payment_approved_by = $librarianId;
 
         $this->transitionTo(
             Borrowing::STATUS_COMPLETED
@@ -33,6 +40,8 @@ class PaymentPendingState extends BorrowingState
     public function rejectPayment(): void
     {
         $this->borrowing->payment_reference = null;
+        $this->borrowing->payment_method = null;
+        $this->borrowing->payment_started_at = null;
         $this->borrowing->payment_submitted_at = null;
 
         $this->transitionTo(

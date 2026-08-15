@@ -155,34 +155,17 @@ class RoomAvailabilityController extends Controller
                     ->pluck('location'),
 
                 /*
-                 * 只在用户已选择 Floor 和至少一个 Facility 后，
+                 * 只在用户已选择 Room type 和 Floor 后，
                  * 才显示真实存在的 capacity 选项，避免让用户猜人数。
+                 *
+                 * Facility 是独立的额外条件，不应该阻止用户先按人数筛选。
                  */
                 'capacityOptions' => filled(
                     $validated['location'] ?? null
-                ) && $selectedFacilities !== []
+                ) && filled($validated['type'] ?? null)
                     ? Room::query()
                         ->where('location', $validated['location'])
-                        ->when(
-                            filled($validated['type'] ?? null),
-                            fn ($query) => $query->where(
-                                'type',
-                                $validated['type']
-                            )
-                        )
-                        ->when(
-                            $selectedFacilities !== [],
-                            function ($query) use (
-                                $selectedFacilities
-                            ): void {
-                                foreach ($selectedFacilities as $facility) {
-                                    $query->whereJsonContains(
-                                        'facilities',
-                                        $facility
-                                    );
-                                }
-                            }
-                        )
+                        ->where('type', $validated['type'])
                         ->orderBy('capacity')
                         ->pluck('capacity')
                         ->unique()

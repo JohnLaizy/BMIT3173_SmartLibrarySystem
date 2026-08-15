@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('isbn', 17)->unique();
             $table->string('title');
             $table->string('author');
-            $table->string('category');
+            $table->string('category')->default('General');
             $table->enum('type', ['physical', 'ebook'])->default('physical');
             $table->unsignedInteger('total_copies')->default(1);
             $table->unsignedInteger('available_copies')->default(1);
