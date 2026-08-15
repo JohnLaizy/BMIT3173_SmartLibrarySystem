@@ -10,6 +10,7 @@ use App\Http\Controllers\RoomMaintenanceController;
 use App\Http\Controllers\RoomReservationController;
 use App\Models\Room;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BookController;
 
 /*
 |--------------------------------------------------------------------------
@@ -285,9 +286,20 @@ Route::middleware([
                     'cancel',
                 ]
             )->name('cancel');
-        });
-});
 
+
+        });
+
+// |--------------------------------------------------------------------------
+// | Book Management
+// |--------------------------------------------------------------------------
+// */
+
+Route::resource(
+    'books',
+    BookController::class
+);
+});
 /*
 |--------------------------------------------------------------------------
 | Settings Routes
