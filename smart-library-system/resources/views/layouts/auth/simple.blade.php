@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html
     lang="{{ str_replace('_', '-', app()->getLocale()) }}"
-    class="dark"
 >
     <head>
         @include('partials.head')
@@ -19,7 +18,7 @@
             ></div>
 
             <div
-                class="absolute -bottom-48 -right-40 size-[30rem]
+                class="absolute -bottom-48 -right-40 size-120
                        rounded-full bg-sky-500/10 blur-3xl"
             ></div>
         </div>
@@ -30,34 +29,16 @@
                 class="mx-auto flex h-20 max-w-7xl items-center
                        justify-between px-5 sm:px-8 lg:px-10"
             >
+                <!-- Logo -->
                 <a
                     href="{{ route('home') }}"
                     class="flex items-center gap-3"
-                    wire:navigate
+                    wire:navigate.hover
                 >
-                    <span
-                        class="grid size-10 place-items-center
-                               rounded-xl bg-emerald-600 text-white
-                               shadow-lg shadow-emerald-950/30"
-                    >
-                        <svg
-                            class="size-5"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            aria-hidden="true"
-                        >
-                            <path
-                                d="M4.75 5.75A2.75 2.75 0 0 1 7.5 3h3.25A2.25
-                                   2.25 0 0 1 13 5.25V20a3.5 3.5 0 0 0-3.5-3.5
-                                   H4.75V5.75ZM19.25 5.75A2.75 2.75 0 0 0
-                                   16.5 3h-1.25A2.25 2.25 0 0 0 13 5.25V20
-                                   a3.5 3.5 0 0 1 3.5-3.5h2.75V5.75Z"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linejoin="round"
-                            />
-                        </svg>
-                    </span>
+                    <x-app-logo-icon
+                        class="size-10 shrink-0 rounded-xl
+                            shadow-lg shadow-indigo-950/30"
+                    />
 
                     <span>
                         <span class="block font-bold leading-tight text-white">
@@ -70,25 +51,53 @@
                     </span>
                 </a>
 
-                <a
-                    href="{{ route('home') }}"
-                    class="inline-flex min-h-11 items-center gap-2
-                           rounded-xl border border-zinc-700
-                           bg-zinc-900 px-4 text-sm font-semibold
-                           text-zinc-200 transition
-                           hover:border-zinc-600 hover:bg-zinc-800
-                           focus:outline-none focus:ring-2
-                           focus:ring-emerald-500"
-                    wire:navigate
-                >
-                    <span aria-hidden="true">←</span>
-                    <span class="hidden sm:inline">Back to Home</span>
-                    <span class="sm:hidden">Home</span>
-                </a>
+                <!-- Context-aware back button -->
+                @if (request()->routeIs('password.confirm'))
+                    <a
+                        href="{{ route('profile.edit') }}"
+                        class="inline-flex min-h-11 items-center gap-2
+                               rounded-xl border border-zinc-700
+                               bg-zinc-900 px-4 text-sm font-semibold
+                               text-zinc-200 transition
+                               hover:border-zinc-600 hover:bg-zinc-800
+                               focus:outline-none focus:ring-2
+                               focus:ring-emerald-500"
+                        wire:navigate.hover
+                    >
+                        <span aria-hidden="true">←</span>
+                        <span class="hidden sm:inline">
+                            Back to Settings
+                        </span>
+                        <span class="sm:hidden">
+                            Settings
+                        </span>
+                    </a>
+                @else
+                    <a
+                        href="{{ route('home') }}"
+                        class="inline-flex min-h-11 items-center gap-2
+                               rounded-xl border border-zinc-700
+                               bg-zinc-900 px-4 text-sm font-semibold
+                               text-zinc-200 transition
+                               hover:border-zinc-600 hover:bg-zinc-800
+                               focus:outline-none focus:ring-2
+                               focus:ring-emerald-500"
+                        wire:navigate.hover
+                    >
+                        <span aria-hidden="true">←</span>
+                        <span class="hidden sm:inline">
+                            Back to Home
+                        </span>
+                        <span class="sm:hidden">
+                            Home
+                        </span>
+                    </a>
+                @endif
             </div>
         </header>
 
         <main
+            data-page-transition
             class="relative mx-auto grid min-h-svh max-w-7xl
                    items-center gap-12 px-5 pb-10 pt-28
                    sm:px-8 lg:grid-cols-[1fr_0.9fr]
@@ -102,7 +111,10 @@
                            bg-emerald-500/10 px-3 py-1.5
                            text-sm font-semibold text-emerald-300"
                 >
-                    <span class="size-2 rounded-full bg-emerald-400"></span>
+                    <span
+                        class="size-2 rounded-full bg-emerald-400"
+                    ></span>
+
                     Secure library access
                 </div>
 
@@ -111,6 +123,7 @@
                            tracking-tight text-white"
                 >
                     Your library workspace,
+
                     <span class="text-emerald-400">
                         ready when you are.
                     </span>
@@ -122,9 +135,11 @@
                 </p>
 
                 <div class="mt-10 grid gap-4">
+                    <!-- Room information -->
                     <div
                         class="flex items-start gap-4 rounded-2xl
-                               border border-zinc-800 bg-zinc-900/70 p-4"
+                               border border-zinc-800
+                               bg-zinc-900/70 p-4"
                     >
                         <span
                             class="grid size-10 shrink-0 place-items-center
@@ -146,13 +161,16 @@
                         </div>
                     </div>
 
+                    <!-- Role-based access -->
                     <div
                         class="flex items-start gap-4 rounded-2xl
-                               border border-zinc-800 bg-zinc-900/70 p-4"
+                               border border-zinc-800
+                               bg-zinc-900/70 p-4"
                     >
                         <span
                             class="grid size-10 shrink-0 place-items-center
-                                   rounded-xl bg-sky-500/10 text-sky-400"
+                                   rounded-xl bg-sky-500/10
+                                   text-sky-400"
                         >
                             🔒
                         </span>
@@ -184,10 +202,11 @@
             </section>
         </main>
 
+        <!-- Footer -->
         <footer
             class="relative border-t border-zinc-800
-                   bg-zinc-950/80 px-5 py-6 text-center
-                   text-sm text-zinc-500"
+                   bg-zinc-950/80 px-5 py-6
+                   text-center text-sm text-zinc-500"
         >
             &copy; {{ now()->year }} Smart Library System.
             Secure access for students and librarians.

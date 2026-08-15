@@ -64,3 +64,18 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+[data-page-transition] {
+    transform-origin: top center;
+}
+
+/*
+ * 确保 Flux input 在 Dark Mode 中有足够对比度。
+ * 防止已有 Name / Email 因文字颜色太暗而看起来像空白。
+ */
+input[data-flux-control],
+textarea[data-flux-control],
+select[data-flux-control] {
+    @apply text-zinc-900 placeholder:text-zinc-500
+           dark:text-zinc-100 dark:placeholder:text-zinc-400;
+}

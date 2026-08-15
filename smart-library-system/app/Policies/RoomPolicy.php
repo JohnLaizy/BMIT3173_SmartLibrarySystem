@@ -9,18 +9,20 @@ class RoomPolicy
 {
     public function viewAny(User $user): bool
     {
-        return in_array($user->role, [
-            User::ROLE_LIBRARIAN,
-            User::ROLE_STUDENT,
-        ], true);
+        return $user->isLibrarian();
     }
 
-    public function view(User $user, Room $room): bool
+    public function viewAvailability(User $user): bool
     {
-        return in_array($user->role, [
-            User::ROLE_LIBRARIAN,
-            User::ROLE_STUDENT,
-        ], true);
+        return $user->isLibrarian()
+            || $user->isStudent();
+    }
+
+    public function view(
+        User $user,
+        Room $room
+    ): bool {
+        return $user->isLibrarian();
     }
 
     public function create(User $user): bool
@@ -28,23 +30,31 @@ class RoomPolicy
         return $user->isLibrarian();
     }
 
-    public function update(User $user, Room $room): bool
-    {
+    public function update(
+        User $user,
+        Room $room
+    ): bool {
         return $user->isLibrarian();
     }
 
-    public function delete(User $user, Room $room): bool
-    {
+    public function delete(
+        User $user,
+        Room $room
+    ): bool {
         return $user->isLibrarian();
     }
 
-    public function restore(User $user, Room $room): bool
-    {
+    public function restore(
+        User $user,
+        Room $room
+    ): bool {
         return $user->isLibrarian();
     }
 
-    public function forceDelete(User $user, Room $room): bool
-    {
+    public function forceDelete(
+        User $user,
+        Room $room
+    ): bool {
         return $user->isLibrarian();
     }
 }

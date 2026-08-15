@@ -1,7 +1,7 @@
 # Remember to do when pulling (not first time)
 ```powershell
-cd .\smart-library-system
 composer install
+php artisan optimize:clear
 npm ci --include=optional
 php artisan migrate
 composer run dev
@@ -114,7 +114,8 @@ Run:
 composer install
 ```
 
-Use `composer install`, not `composer update`, because `composer install` uses the package versions recorded in:
+Use `composer install`, not `composer update`, because `composer install` uses the package versions recorded
+ in:
 
 ```text
 composer.lock

@@ -1,12 +1,25 @@
 <?php
 
+use App\Http\Controllers\BookReservationController;
 use App\Http\Controllers\BorrowingController;
+use App\Http\Controllers\LibrarySettingController;
+use App\Http\Controllers\RoomAvailabilityController;
 use App\Http\Controllers\RoomController;
-use App\Http\Controllers\BookingController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\RoomDashboardController;
+use App\Http\Controllers\RoomMaintenanceController;
+use App\Http\Controllers\RoomReservationController;
 use App\Models\Room;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BookController;
+
+/*
+|--------------------------------------------------------------------------
+| Welcome Page
+|--------------------------------------------------------------------------
+*/
 
 Route::get('/', function () {
+
     $rooms = Room::query()
         ->orderBy('room_number')
         ->limit(3)
@@ -21,111 +34,276 @@ Route::get('/', function () {
     return view('welcome', compact(
         'rooms',
         'availableRoomsCount',
-        'totalRoomsCount'
+        'totalRoomsCount',
     ));
 })->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+/*
+|--------------------------------------------------------------------------
+| Authenticated Routes
+|--------------------------------------------------------------------------
+*/
 
-    Route::get('dashboard', function () {
-    $statusCounts = Room::query()
-        ->selectRaw('status, COUNT(*) as total')
-        ->groupBy('status')
-        ->pluck('total', 'status');
+Route::middleware([
+    'auth',
+    'verified',
+])->group(function () {
+    /*
+    |--------------------------------------------------------------------------
+    | Room Dashboard
+    |--------------------------------------------------------------------------
+    */
 
-    $roomStats = [
-        'total' => $statusCounts->sum(),
-        'available' => $statusCounts->get('available', 0),
-        'unavailable' => $statusCounts->get('unavailable', 0),
-        'maintenance' => $statusCounts->get('maintenance', 0),
-    ];
+    Route::get(
+        'dashboard',
+        RoomDashboardController::class
+    )->name('dashboard');
 
-    $recentRooms = Room::query()
-        ->with('creator')
-        ->latest('updated_at')
-        ->limit(5)
-        ->get();
+    /*
+    |--------------------------------------------------------------------------
+    | Room Availability
+    |--------------------------------------------------------------------------
+    */
 
-    return view('dashboard', compact(
-        'roomStats',
-        'recentRooms'
-    ));
-})->name('dashboard');
+    Route::get(
+        'room-availability',
+        RoomAvailabilityController::class
+    )->name('room-availability.index');
 
+    /*
+    |--------------------------------------------------------------------------
+    | Library Operating Hours
+    |--------------------------------------------------------------------------
+    */
+
+    Route::patch(
+        'library-settings/exam-period',
+        LibrarySettingController::class
+    )
+        ->middleware('throttle:10,1')
+        ->name('library-settings.exam-period.update');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Room Reservations
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'room-reservations',
+        [
+            RoomReservationController::class,
+            'index',
+        ]
+    )->name('room-reservations.index');
+
+    Route::get(
+        'room-reservations/create',
+        [
+            RoomReservationController::class,
+            'create',
+        ]
+    )->name('room-reservations.create');
+
+    Route::post(
+        'room-reservations',
+        [
+            RoomReservationController::class,
+            'store',
+        ]
+    )->name('room-reservations.store');
+
+    Route::get(
+        'room-reservations/{reservation}/edit',
+        [
+            RoomReservationController::class,
+            'edit',
+        ]
+    )->name('room-reservations.edit');
+
+    Route::patch(
+        'room-reservations/{reservation}',
+        [
+            RoomReservationController::class,
+            'update',
+        ]
+    )->name('room-reservations.update');
+
+    Route::patch(
+        'room-reservations/{reservation}/cancel',
+        [
+            RoomReservationController::class,
+            'cancel',
+        ]
+    )->name('room-reservations.cancel');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Room Management
+    |--------------------------------------------------------------------------
+    */
+
+    // Room Management
     Route::resource(
         'rooms',
         RoomController::class
     );
 
-    Route::prefix('bookings')
-    ->name('bookings.')
-    ->group(function () {
+    /*
+    |--------------------------------------------------------------------------
+    | Room Maintenance Management
+    |--------------------------------------------------------------------------
+    */
 
-        Route::get(
-            '/',
-            [BookingController::class, 'index']
-        )->name('index');
+    Route::resource(
+        'maintenances',
+        RoomMaintenanceController::class
+    )->except('show');
 
-        Route::post(
-            '/',
-            [BookingController::class, 'store']
-        )->name('store');
-
-    });
+    /*
+    |--------------------------------------------------------------------------
+    | Borrow & Return
+    |--------------------------------------------------------------------------
+    */
 
     Route::prefix('borrowings')
         ->name('borrowings.')
         ->group(function () {
+
             Route::get(
                 '/',
-                [BorrowingController::class, 'index']
+                [
+                    BorrowingController::class,
+                    'index',
+                ]
             )->name('index');
 
             Route::post(
                 '/',
-                [BorrowingController::class, 'store']
+                [
+                    BorrowingController::class,
+                    'store',
+                ]
             )
                 ->middleware('throttle:20,1')
                 ->name('store');
 
             Route::patch(
                 '/{borrowing}/return',
-                [BorrowingController::class, 'returnCopy']
+                [
+                    BorrowingController::class,
+                    'returnCopy',
+                ]
             )->name('return');
 
             Route::post(
                 '/{borrowing}/payment',
-                [BorrowingController::class, 'submitPayment']
+                [
+                    BorrowingController::class,
+                    'submitPayment',
+                ]
             )
                 ->middleware('throttle:10,1')
                 ->name('payment.submit');
 
             Route::patch(
                 '/{borrowing}/payment/approve',
-                [BorrowingController::class, 'approvePayment']
+                [
+                    BorrowingController::class,
+                    'approvePayment',
+                ]
             )->name('payment.approve');
 
             Route::patch(
                 '/{borrowing}/payment/reject',
-                [BorrowingController::class, 'rejectPayment']
+                [
+                    BorrowingController::class,
+                    'rejectPayment',
+                ]
             )->name('payment.reject');
         });
 
-        Route::get('/bookings/create',
-        [BookingController::class,'create'])
-        ->middleware('auth')
-        ->name('bookings.create');
+    Route::patch(
+        'books/{book}/copies',
+        [
+            BorrowingController::class,
+            'updateCopyQuantity',
+        ]
+    )
+        ->middleware('throttle:20,1')
+        ->name('books.copies.update');
+
+    // BookReservationController
+    Route::prefix('book-reservations')
+        ->name('book-reservations.')
+        ->group(function () {
+            Route::get(
+                '/',
+                [
+                    BookReservationController::class,
+                    'index',
+                ]
+            )->name('index');
+
+            Route::patch(
+                '/{reservation}/collect',
+                [
+                    BookReservationController::class,
+                    'collect',
+                ]
+            )->name('collect');
+
+            Route::post(
+                '/',
+                [
+                    BookReservationController::class,
+                    'store',
+                ]
+            )
+                ->middleware('throttle:10,1')
+                ->name('store');
+
+            Route::patch(
+                '/{reservation}/approve',
+                [
+                    BookReservationController::class,
+                    'approve',
+                ]
+            )->name('approve');
+
+            Route::patch(
+                '/{reservation}/reject',
+                [
+                    BookReservationController::class,
+                    'reject',
+                ]
+            )->name('reject');
+
+            Route::patch(
+                '/{reservation}/cancel',
+                [
+                    BookReservationController::class,
+                    'cancel',
+                ]
+            )->name('cancel');
 
 
-        require __DIR__.'/settings.php';
         });
 
-        Route::post('/bookings',
-        [BookingController::class,'store'])
-        ->middleware('auth');
+// |--------------------------------------------------------------------------
+// | Book Management
+// |--------------------------------------------------------------------------
+// */
 
-        Route::patch('/bookings/{booking}/cancel',
-        [BookingController::class,'cancel'])
-        ->middleware('auth');
+Route::resource(
+    'books',
+    BookController::class
+);
+});
+/*
+|--------------------------------------------------------------------------
+| Settings Routes
+|--------------------------------------------------------------------------
+*/
 
 require __DIR__.'/settings.php';
