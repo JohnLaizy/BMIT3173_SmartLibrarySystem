@@ -291,38 +291,66 @@ public function destroy(
      *
      * @return array<string, array<int, string>|int|string>
      */
-    private function indexParameters(Request $request): array
-    {
-        $parameters = [
-            'page' => max(1, (int) $request->input('page', 1)),
-            'search' => trim((string) $request->input('search', '')),
-            'type' => trim((string) $request->input('type', '')),
-            'capacity' => $request->filled('capacity')
-                ? (int) $request->input('capacity')
-                : '',
-            'location' => trim((string) $request->input('location', '')),
-            'facilities' => is_array($request->input('facilities'))
-                ? array_values(
-                    array_filter(
-                        $request->input('facilities'),
-                        fn ($facility): bool => is_string($facility)
-                            && $facility !== ''
-                    )
-                )
-                : [],
-        ];
 
-        return array_filter(
-            $parameters,
-            function ($value): bool {
-                if (is_array($value)) {
-                    return $value !== [];
-                }
 
-                return $value !== '' && $value !== null;
-            }
-        );
-    }
+
+
+   private function indexParameters(Request $request): array
+   {
+       $page = $request->query('page');
+
+       if ($page === null) {
+           $page = $request->input('page', 1);
+       }
+
+       $facilities = $request->query('facilities', []);
+
+       $parameters = [
+           'page' => max(1, (int) $page),
+
+           'search' => trim(
+               (string) $request->query('search', '')
+           ),
+
+          'type' => trim(
+              (string) $request->query('type', '')
+          ),
+
+          'capacity' => $request->query('capacity') !== null
+              ? (int) $request->query('capacity')
+              : '',
+
+          'location' => trim(
+              (string) $request->query('location', '')
+          ),
+
+          'facilities' => is_array($facilities)
+              ? array_values(
+                  array_filter(
+                      $facilities,
+                      fn ($facility): bool =>
+                          is_string($facility)
+                          && $facility !== ''
+                  )
+              )
+              : [],
+      ];
+
+      return array_filter(
+          $parameters,
+          function ($value): bool {
+              if (is_array($value)) {
+                  return $value !== [];
+              }
+
+              return $value !== ''
+                  && $value !== null;
+          }
+      );
+  }
+
+
+
 
     /**
      * Return the real type-to-location relationships stored in the database.

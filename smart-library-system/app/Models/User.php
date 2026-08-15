@@ -52,6 +52,10 @@ class User extends Authenticatable
 
     public const STATUS_INACTIVE = 'inactive';
 
+    protected $attributes = [
+        'account_status' => self::STATUS_ACTIVE,
+    ];
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
 

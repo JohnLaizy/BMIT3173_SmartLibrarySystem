@@ -18,7 +18,9 @@ class SecurityTest extends TestCase
     {
         parent::setUp();
 
-        $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
+        $this->skipUnlessFortifyHas(
+            Features::twoFactorAuthentication()
+        );
 
         Features::twoFactorAuthentication([
             'confirm' => true,
@@ -31,7 +33,9 @@ class SecurityTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)
-            ->withSession(['auth.password_confirmed_at' => time()])
+            ->withSession([
+                'auth.password_confirmed_at' => time(),
+            ])
             ->get(route('security.edit'));
 
         $response->assertOk();
@@ -47,7 +51,9 @@ class SecurityTest extends TestCase
         $response = $this->actingAs($user)
             ->get(route('security.edit'));
 
-        $response->assertRedirect(route('password.confirm'));
+        $response->assertRedirect(
+            route('password.confirm')
+        );
     }
 
     public function test_security_settings_page_renders_without_two_factor_when_feature_is_disabled(): void
@@ -57,13 +63,21 @@ class SecurityTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->withSession(['auth.password_confirmed_at' => time()])
+            ->withSession([
+                'auth.password_confirmed_at' => time(),
+            ])
             ->get(route('security.edit'))
             ->assertOk()
             ->assertSee('Update password')
-            ->assertDontSee('Manage your passkeys for passwordless sign-in')
-            ->assertDontSee('Add a passkey to sign in without a password')
-            ->assertDontSee('Two-factor authentication');
+            ->assertDontSee(
+                'Manage your passkeys for passwordless sign-in'
+            )
+            ->assertDontSee(
+                'Add a passkey to sign in without a password'
+            )
+            ->assertDontSee(
+                'Two-factor authentication'
+            );
     }
 
     public function test_two_factor_authentication_disabled_when_confirmation_abandoned_between_requests(): void
@@ -72,7 +86,9 @@ class SecurityTest extends TestCase
 
         $user->forceFill([
             'two_factor_secret' => encrypt('test-secret'),
-            'two_factor_recovery_codes' => encrypt(json_encode(['code1', 'code2'])),
+            'two_factor_recovery_codes' => encrypt(
+                json_encode(['code1', 'code2'])
+            ),
             'two_factor_confirmed_at' => null,
         ])->save();
 
@@ -80,7 +96,10 @@ class SecurityTest extends TestCase
 
         $component = Livewire::test(Security::class);
 
-        $component->assertSet('twoFactorEnabled', false);
+        $component->assertSet(
+            'twoFactorEnabled',
+            false
+        );
 
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
@@ -98,14 +117,28 @@ class SecurityTest extends TestCase
         $this->actingAs($user);
 
         $response = Livewire::test(Security::class)
-            ->set('current_password', 'password')
-            ->set('password', 'new-password')
-            ->set('password_confirmation', 'new-password')
+            ->set(
+                'current_password',
+                'password'
+            )
+            ->set(
+                'password',
+                'NewPassword1!'
+            )
+            ->set(
+                'password_confirmation',
+                'NewPassword1!'
+            )
             ->call('updatePassword');
 
         $response->assertHasNoErrors();
 
-        $this->assertTrue(Hash::check('new-password', $user->refresh()->password));
+        $this->assertTrue(
+            Hash::check(
+                'NewPassword1!',
+                $user->refresh()->password
+            )
+        );
     }
 
     public function test_correct_password_must_be_provided_to_update_password(): void
@@ -117,11 +150,22 @@ class SecurityTest extends TestCase
         $this->actingAs($user);
 
         $response = Livewire::test(Security::class)
-            ->set('current_password', 'wrong-password')
-            ->set('password', 'new-password')
-            ->set('password_confirmation', 'new-password')
+            ->set(
+                'current_password',
+                'wrong-password'
+            )
+            ->set(
+                'password',
+                'new-password'
+            )
+            ->set(
+                'password_confirmation',
+                'new-password'
+            )
             ->call('updatePassword');
 
-        $response->assertHasErrors(['current_password']);
+        $response->assertHasErrors([
+            'current_password',
+        ]);
     }
 }
