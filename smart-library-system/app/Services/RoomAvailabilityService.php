@@ -40,7 +40,8 @@ class RoomAvailabilityService
      * }
      */
     public function forDate(
-        CarbonImmutable $date
+        CarbonImmutable $date,
+        array $filters = []
     ): array {
         /*
          * 从数据库读取普通模式或 Exam Period 设置。
@@ -99,6 +100,54 @@ class RoomAvailabilityService
                         $openingAt
                     ),
             ])
+            ->when(
+                filled($filters['search'] ?? null),
+                function ($query) use ($filters): void {
+                    $search = $filters['search'];
+
+                    $query->where(function ($query) use ($search): void {
+                        $query
+                            ->where('room_number', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%")
+                            ->orWhere('location', 'like', "%{$search}%");
+                    });
+                }
+            )
+            ->when(
+                filled($filters['type'] ?? null),
+                fn ($query) => $query->where('type', $filters['type'])
+            )
+            ->when(
+                isset($filters['capacity']),
+                fn ($query) => $query->where(
+                    'capacity',
+                    '>=',
+                    $filters['capacity']
+                )
+            )
+            ->when(
+                filled($filters['location'] ?? null),
+                fn ($query) => $query->where(
+                    'location',
+                    $filters['location']
+                )
+            )
+            ->when(
+                filled($filters['facilities'] ?? null),
+                function ($query) use ($filters): void {
+                    /*
+                     * 多选设施使用 AND 逻辑：
+                     * 选择 Air Conditioning + Projector 时，
+                     * 只显示同时拥有两者的房间。
+                     */
+                    foreach ($filters['facilities'] as $facility) {
+                        $query->whereJsonContains(
+                            'facilities',
+                            $facility
+                        );
+                    }
+                }
+            )
             ->orderBy('room_number')
             ->get();
 

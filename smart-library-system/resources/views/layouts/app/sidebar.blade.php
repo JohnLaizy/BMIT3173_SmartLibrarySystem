@@ -110,6 +110,20 @@
                     </flux:sidebar.item>
                 @endif
 
+
+                <!-- Book Reservations -->
+                @if (Route::has('book-reservations.index'))
+                    <flux:sidebar.item
+                        icon="bookmark-square"
+                        :href="route('book-reservations.index')"
+                        :current="request()->routeIs('book-reservations.*')"
+                        wire:navigate
+                    >
+                        {{ __('Book Reservations') }}
+                    </flux:sidebar.item>
+                @endif
+
+           
                 <!-- User Management -->
                 @if (auth()->user()->isLibrarian())
                     @if (Route::has('users.index'))
@@ -315,6 +329,20 @@
                         Borrow & Return
                     </a>
                 @endif
+
+                @if (Route::has('book-reservations.index'))
+                    <a
+                        href="{{ route('book-reservations.index') }}"
+                        class="mt-1 flex min-h-11 items-center gap-3 rounded-xl
+                               px-3 text-sm font-semibold
+                               text-zinc-700 transition hover:bg-zinc-100
+                               dark:text-zinc-200 dark:hover:bg-zinc-800"
+                        wire:navigate
+                    >
+                        Book Reservations
+                    </a>
+                @endif
+
 
                 <div class="my-3 border-t border-zinc-200 dark:border-zinc-700"></div>
 

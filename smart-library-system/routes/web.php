@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\BookController;
+use App\Http\Controllers\BookReservationController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\LibrarySettingController;
 use App\Http\Controllers\RoomAvailabilityController;
@@ -7,7 +9,6 @@ use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomDashboardController;
 use App\Http\Controllers\RoomMaintenanceController;
 use App\Http\Controllers\RoomReservationController;
-use App\Http\Controllers\BookController;
 use App\Http\Controllers\UserManagementController;
 use App\Models\Room;
 use Illuminate\Support\Facades\Route;
@@ -47,9 +48,10 @@ Route::middleware([
     'auth',
     'verified',
 ])->group(function () {
+
     /*
     |--------------------------------------------------------------------------
-    | Room Dashboard
+    | Dashboard
     |--------------------------------------------------------------------------
     */
 
@@ -149,7 +151,7 @@ Route::middleware([
 
     /*
     |--------------------------------------------------------------------------
-    | Room Maintenance Management
+    | Room Maintenance
     |--------------------------------------------------------------------------
     */
 
@@ -167,6 +169,7 @@ Route::middleware([
     Route::prefix('borrowings')
         ->name('borrowings.')
         ->group(function () {
+
             Route::get(
                 '/',
                 [
@@ -220,6 +223,77 @@ Route::middleware([
             )->name('payment.reject');
         });
 
+    Route::patch(
+        'books/{book}/copies',
+        [
+            BorrowingController::class,
+            'updateCopyQuantity',
+        ]
+    )
+        ->middleware('throttle:20,1')
+        ->name('books.copies.update');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Book Reservations
+    |--------------------------------------------------------------------------
+    */
+
+    Route::prefix('book-reservations')
+        ->name('book-reservations.')
+        ->group(function () {
+
+            Route::get(
+                '/',
+                [
+                    BookReservationController::class,
+                    'index',
+                ]
+            )->name('index');
+
+            Route::post(
+                '/',
+                [
+                    BookReservationController::class,
+                    'store',
+                ]
+            )
+                ->middleware('throttle:10,1')
+                ->name('store');
+
+            Route::patch(
+                '/{reservation}/collect',
+                [
+                    BookReservationController::class,
+                    'collect',
+                ]
+            )->name('collect');
+
+            Route::patch(
+                '/{reservation}/approve',
+                [
+                    BookReservationController::class,
+                    'approve',
+                ]
+            )->name('approve');
+
+            Route::patch(
+                '/{reservation}/reject',
+                [
+                    BookReservationController::class,
+                    'reject',
+                ]
+            )->name('reject');
+
+            Route::patch(
+                '/{reservation}/cancel',
+                [
+                    BookReservationController::class,
+                    'cancel',
+                ]
+            )->name('cancel');
+        });
+
     /*
     |--------------------------------------------------------------------------
     | Book Management
@@ -230,9 +304,6 @@ Route::middleware([
         'books',
         BookController::class
     );
-
-
-
 
     /*
     |--------------------------------------------------------------------------
@@ -248,45 +319,21 @@ Route::middleware([
         ]
     )->name('users.index');
 
+    Route::get(
+        'users/{user}/edit',
+        [
+            UserManagementController::class,
+            'edit',
+        ]
+    )->name('users.edit');
 
-
-
-Route::get(
-    'users/{user}/edit',
-    [
-        UserManagementController::class,
-        'edit',
-    ]
-)->name('users.edit');
-
-Route::patch(
-    'users/{user}',
-    [
-        UserManagementController::class,
-        'update',
-    ]
-)->name('users.update');
-
-
-
-
-
-
-
-
-Route::patch(
-    'users/{user}/role',
-    [
-        UserManagementController::class,
-        'updateRole',
-    ]
-)->name('users.role.update');
-
-
-
-
-
-
+    Route::patch(
+        'users/{user}',
+        [
+            UserManagementController::class,
+            'update',
+        ]
+    )->name('users.update');
 });
 
 /*

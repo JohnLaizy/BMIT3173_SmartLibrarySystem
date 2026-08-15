@@ -29,9 +29,9 @@ class Profile extends Component
     {
         $user = $this->authenticatedUser();
 
-        $this->profileName = $user->name;
-        $this->profileEmail = $user->email;
-        $this->phone = $user->phone ?? '';
+        $this->profileName = (string) $user->name;
+        $this->profileEmail = (string) $user->email;
+        $this->phone = (string) ($user->phone ?? '');
     }
 
     /**

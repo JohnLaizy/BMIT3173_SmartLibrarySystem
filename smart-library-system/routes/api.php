@@ -8,21 +8,27 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Existing API Routes
+| Authenticated User API
 |--------------------------------------------------------------------------
 */
 
-// Default authenticated user API
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-// Existing Room Booking Web Service
+/*
+|--------------------------------------------------------------------------
+| Room Booking Availability API
+|--------------------------------------------------------------------------
+*/
+
 Route::get(
     '/bookings/availability',
-    [BookingController::class, 'apiAvailability']
+    [
+        BookingController::class,
+        'apiAvailability',
+    ]
 )->name('api.bookings.availability');
-
 
 /*
 |--------------------------------------------------------------------------
@@ -34,7 +40,7 @@ Route::prefix('v1')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Public Query APIs
+    | Public Book APIs
     |--------------------------------------------------------------------------
     */
 
@@ -50,13 +56,16 @@ Route::prefix('v1')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Room Availability Web Service
+    | Room Availability API
     |--------------------------------------------------------------------------
     */
 
     Route::get(
         '/rooms/availability',
-        [RoomAvailabilityApiController::class, 'index']
+        [
+            RoomAvailabilityApiController::class,
+            'index',
+        ]
     )->name('api.rooms.availability');
 
     /*
@@ -65,10 +74,11 @@ Route::prefix('v1')->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    Route::middleware(['auth:sanctum'])->group(function () {
-        Route::post(
-            '/books',
-            [BookController::class, 'store']
-        );
-    });
+    Route::middleware('auth:sanctum')
+        ->group(function () {
+            Route::post(
+                '/books',
+                [BookController::class, 'store']
+            );
+        });
 });

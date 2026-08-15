@@ -6,6 +6,17 @@
      * 就安全地使用第一页。
      */
     $page = max(1, (int) request()->query('page', 1));
+    $search = (string) ($search ?? request()->query('search', ''));
+    $indexQuery = array_merge(
+        request()->only([
+            'search',
+            'type',
+            'capacity',
+            'location',
+            'facilities',
+        ]),
+        ['page' => $page]
+    );
 @endphp
 <div
         data-page-transition
@@ -28,9 +39,7 @@
             </div>
 
             <flux:button
-                :href="route('rooms.index', [
-    'page' => $page,
-])"
+                :href="route('rooms.index', $indexQuery)"
                 variant="ghost"
                 icon="arrow-left"
                 class="self-start"
@@ -47,19 +56,19 @@
         >
 <form
     method="POST"
-    action="{{ route('rooms.update', [
-        'room' => $room,
-        'page' => $page,
-    ]) }}"
+    action="{{ route('rooms.update', array_merge(
+        ['room' => $room],
+        $indexQuery
+    )) }}"
+    data-room-location-form
+    data-type-locations='@json($typeLocations)'
 >
 @csrf
 @method('PUT')
 @include('rooms._form')
                 <div class="mt-10 flex justify-end gap-3">
                     <flux:button
-                        :href="route('rooms.index', [
-                        'page' => $page,
-                    ])"
+                        :href="route('rooms.index', $indexQuery)"
                         variant="ghost"
                         wire:navigate.hover
                     >

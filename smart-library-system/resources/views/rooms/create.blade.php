@@ -4,15 +4,30 @@
     class="mx-auto flex w-full max-w-6xl flex-1
            flex-col gap-8 px-2 sm:px-4"
 >
-        <div class="mb-6">
-            <flux:heading size="xl" level="1">
-                Add Room
-            </flux:heading>
+        <header
+            class="flex flex-col justify-between gap-4
+                   sm:flex-row sm:items-start"
+        >
+            <div>
+                <flux:heading size="xl" level="1">
+                    Add Room
+                </flux:heading>
 
-            <flux:text class="mt-2">
-                Enter the new room information.
-            </flux:text>
-        </div>
+                <flux:text class="mt-2">
+                    Enter the new room information.
+                </flux:text>
+            </div>
+
+            <flux:button
+                :href="route('rooms.index')"
+                variant="ghost"
+                icon="arrow-left"
+                class="min-h-11 w-full sm:w-auto"
+                wire:navigate
+            >
+                Back to Room Management
+            </flux:button>
+        </header>
 
         <div
             class="rounded-xl border border-zinc-200 bg-white p-6
@@ -21,6 +36,8 @@
             <form
                 method="POST"
                 action="{{ route('rooms.store') }}"
+                data-room-location-form
+                data-type-locations='@json($typeLocations)'
             >
                 @csrf
 
