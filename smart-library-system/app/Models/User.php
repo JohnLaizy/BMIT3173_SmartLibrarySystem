@@ -29,14 +29,28 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property string $role
+ * @property string|null $phone
+ * @property string $account_status
  */
-#[Fillable(['name', 'email', 'phone', 'password'])]
+#[Fillable([
+    'name',
+    'email',
+    'phone',
+    'password',
+    'role',
+    'account_status',
+])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
     public const ROLE_STUDENT = 'student';
 
     public const ROLE_LIBRARIAN = 'librarian';
+
+
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_INACTIVE = 'inactive';
 
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
@@ -76,6 +90,14 @@ class User extends Authenticatable
     {
         return $this->role === self::ROLE_LIBRARIAN;
     }
+
+
+
+     public function isActive(): bool
+{
+    return $this->account_status === self::STATUS_ACTIVE;
+}
+
 
     /**
      * 用户的借书记录。

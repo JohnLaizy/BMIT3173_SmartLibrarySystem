@@ -8,6 +8,7 @@ use App\Http\Controllers\RoomDashboardController;
 use App\Http\Controllers\RoomMaintenanceController;
 use App\Http\Controllers\RoomReservationController;
 use App\Http\Controllers\BookController;
+use App\Http\Controllers\UserManagementController;
 use App\Models\Room;
 use Illuminate\Support\Facades\Route;
 
@@ -229,6 +230,63 @@ Route::middleware([
         'books',
         BookController::class
     );
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | User Management
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'users',
+        [
+            UserManagementController::class,
+            'index',
+        ]
+    )->name('users.index');
+
+
+
+
+Route::get(
+    'users/{user}/edit',
+    [
+        UserManagementController::class,
+        'edit',
+    ]
+)->name('users.edit');
+
+Route::patch(
+    'users/{user}',
+    [
+        UserManagementController::class,
+        'update',
+    ]
+)->name('users.update');
+
+
+
+
+
+
+
+
+Route::patch(
+    'users/{user}/role',
+    [
+        UserManagementController::class,
+        'updateRole',
+    ]
+)->name('users.role.update');
+
+
+
+
+
+
 });
 
 /*
