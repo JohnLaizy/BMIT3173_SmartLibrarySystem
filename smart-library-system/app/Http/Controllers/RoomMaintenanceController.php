@@ -9,7 +9,9 @@ use App\Models\RoomMaintenance;
 use App\Models\User;
 use App\Services\RoomMaintenanceService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class RoomMaintenanceController extends Controller
@@ -21,6 +23,7 @@ class RoomMaintenanceController extends Controller
      * 然后才读取和显示维修记录。
      */
     public function index(
+        Request $request,
         RoomMaintenanceService $maintenanceService
     ): View {
         Gate::authorize(
@@ -37,21 +40,70 @@ class RoomMaintenanceController extends Controller
          */
         $maintenanceService->synchronizeStatuses();
 
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => [
+                'nullable',
+                Rule::in([
+                    RoomMaintenance::STATUS_COMPLETED,
+                    RoomMaintenance::STATUS_CANCELLED,
+                ]),
+            ],
+        ]);
+
+        $search = trim((string) ($validated['search'] ?? ''));
+        $status = $validated['status'] ?? null;
+
         /*
-         * 同步完成以后，再从数据库读取最新维修记录。
+         * Dashboard 部分：只显示尚未结束的维修。
+         * 这让管理员打开页面后优先看到真正需要处理的记录。
          */
-        $maintenances =
-            RoomMaintenance::query()
-                ->with([
-                    'room',
-                    'creator',
-                ])
-                ->orderBy('starts_at')
-                ->paginate(10);
+        $currentMaintenances = RoomMaintenance::query()
+            ->with(['room', 'creator'])
+            ->whereIn('status', [
+                RoomMaintenance::STATUS_SCHEDULED,
+                RoomMaintenance::STATUS_IN_PROGRESS,
+            ])
+            ->orderBy('starts_at')
+            ->get();
+
+        /*
+         * History 部分：只显示 completed / cancelled。
+         * Search 会同时查找房间、标题、描述和状态，
+         * 并保留到分页链接中。
+         */
+        $historyMaintenances = RoomMaintenance::query()
+            ->with(['room', 'creator'])
+            ->whereIn('status', [
+                RoomMaintenance::STATUS_COMPLETED,
+                RoomMaintenance::STATUS_CANCELLED,
+            ])
+            ->when($status, fn ($query) => $query->where('status', $status))
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query
+                        ->where('title', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('status', 'like', "%{$search}%")
+                        ->orWhereHas('room', function ($query) use ($search): void {
+                            $query
+                                ->where('room_number', 'like', "%{$search}%")
+                                ->orWhere('name', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->latest('ends_at')
+            ->paginate(10)
+            ->withQueryString();
 
         return view(
             'maintenances.index',
-            compact('maintenances')
+            compact(
+                'currentMaintenances',
+                'historyMaintenances',
+                'search',
+                'status'
+            )
         );
     }
 

@@ -59,6 +59,33 @@
                 'letter' => 'U',
             ],
         ];
+
+        /*
+         * Previous / Next / Today 都会保留目前的筛选，
+         * 避免用户选择新日期后要重新填写条件。
+         */
+        $filterQuery = $filters;
+
+        /*
+         * Facility 多选菜单的显示文字。
+         * 筛选条件本身仍由 Controller 验证，Blade 只负责显示。
+         */
+        $selectedFacilities = $filters['facilities'] ?? [];
+        $selectedFacilityLabel = collect($selectedFacilities)
+            ->map(
+                fn (string $facility): string => (string) str(
+                    $facility
+                )->replace('_', ' ')->title()
+            )
+            ->implode(', ');
+
+        /*
+         * 人数只在 Floor 和 Facility 均已选择后开放。
+         * $capacityOptions 已由 Controller 从数据库计算。
+         */
+        $canChooseCapacity = filled(
+            $filters['location'] ?? null
+        ) && $selectedFacilities !== [];
     @endphp
 
     <div
@@ -166,6 +193,24 @@
                        sm:flex-row sm:flex-wrap sm:items-end
                        lg:w-auto lg:justify-end"
             >
+                @foreach ($filters as $filterName => $filterValue)
+                    @if (is_array($filterValue))
+                        @foreach ($filterValue as $filterItem)
+                            <input
+                                type="hidden"
+                                name="{{ $filterName }}[]"
+                                value="{{ $filterItem }}"
+                            >
+                        @endforeach
+                    @else
+                        <input
+                            type="hidden"
+                            name="{{ $filterName }}"
+                            value="{{ $filterValue }}"
+                        >
+                    @endif
+                @endforeach
+
                 <div class="w-full sm:w-auto">
                     <label
                         for="date"
@@ -195,9 +240,10 @@
 
                 @unless ($selectedDate->isToday())
                     <flux:button
-                        :href="route('room-availability.index', [
-                            'date' => now()->format('Y-m-d'),
-                        ])"
+                         :href="route('room-availability.index', [
+                             'date' => now()->format('Y-m-d'),
+                             ...$filterQuery,
+                         ])"
                         variant="ghost"
                         class="min-h-11 w-full
                                hover:!bg-zinc-500/10 sm:w-auto"
@@ -214,6 +260,234 @@
                 >
                     View Schedule
                 </flux:button>
+            </form>
+        </section>
+
+        {{-- 房间筛选：所有筛选会立即更新统计卡及下方时间表。 --}}
+        <section
+            class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm
+                   dark:border-zinc-700 dark:bg-zinc-900"
+        >
+            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="font-semibold text-zinc-900 dark:text-white">
+                        Find a room
+                    </h2>
+
+                    <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                        Results update automatically after each selection.
+                    </p>
+                </div>
+
+                <flux:button
+                    :href="route('room-availability.index', [
+                        'date' => $selectedDate->format('Y-m-d'),
+                    ])"
+                    size="sm"
+                    variant="ghost"
+                    icon="arrow-path"
+                    class="min-h-10 w-full sm:w-auto"
+                    wire:navigate
+                >
+                    Reset filters
+                </flux:button>
+            </div>
+
+            <form
+                method="GET"
+                action="{{ route('room-availability.index') }}"
+                data-auto-filter-form
+                data-type-locations='@json($typeLocations)'
+                data-location-types='@json($locationTypes)'
+                class="grid gap-3 sm:grid-cols-2 xl:grid-cols-6 xl:items-end"
+            >
+                <input
+                    type="hidden"
+                    name="date"
+                    value="{{ $selectedDate->format('Y-m-d') }}"
+                >
+
+                <div class="xl:col-span-2">
+                    <label
+                        for="availability-search"
+                        class="mb-1 block text-sm font-semibold text-zinc-700 dark:text-zinc-200"
+                    >
+                        Search rooms
+                    </label>
+
+                    <input
+                        id="availability-search"
+                        name="search"
+                        type="search"
+                        data-auto-filter-input
+                        value="{{ $filters['search'] ?? '' }}"
+                        placeholder="Room number or name"
+                        class="min-h-11 w-full rounded-xl border border-zinc-300 bg-white px-3
+                               text-sm outline-none placeholder:text-zinc-400 focus:border-blue-500
+                               focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700
+                               dark:bg-zinc-800 dark:text-white"
+                    >
+                </div>
+
+                <div>
+                    <label for="availability-location" class="mb-1 block text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+                        Floor / location
+                    </label>
+
+                    <div class="relative">
+                        <select
+                            id="availability-location"
+                            name="location"
+                            data-auto-filter-select
+                            class="min-h-11 w-full appearance-none rounded-xl border border-zinc-300 bg-white px-3 pe-11 text-sm
+                                   dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        >
+                            <option value="">All locations</option>
+                            @foreach ($locations as $location)
+                                <option value="{{ $location }}" @selected(($filters['location'] ?? '') === $location)>
+                                    {{ str($location)->title() }}
+                                </option>
+                            @endforeach
+                        </select>
+
+                        <svg
+                            class="pointer-events-none absolute end-4 top-1/2 size-4 -translate-y-1/2 text-zinc-500 dark:text-zinc-400"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <path d="m5 7 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
+                        </svg>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+                        Facility
+                    </label>
+
+                    <details class="group relative">
+                        <summary
+                            class="flex min-h-11 w-full cursor-pointer list-none items-center justify-between gap-3
+                                   rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900
+                                   outline-none transition hover:border-zinc-400 focus-visible:ring-2
+                                   focus-visible:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-800
+                                   dark:text-white [&::-webkit-details-marker]:hidden"
+                        >
+                            <span class="truncate">
+                                {{ $selectedFacilityLabel !== '' ? $selectedFacilityLabel : 'All facilities' }}
+                            </span>
+
+                            <svg
+                                class="size-4 shrink-0 text-zinc-500 transition-transform group-open:rotate-180 dark:text-zinc-400"
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                aria-hidden="true"
+                            >
+                                <path d="m5 7 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
+                            </svg>
+                        </summary>
+
+                        <div
+                            class="absolute z-30 mt-2 w-72 max-w-[calc(100vw-3rem)] rounded-xl border
+                                   border-zinc-200 bg-white p-2 shadow-xl dark:border-zinc-700
+                                   dark:bg-zinc-900"
+                        >
+                            <p class="px-2 pb-2 text-xs text-zinc-500 dark:text-zinc-400">
+                                Select one or more facilities
+                            </p>
+
+                            @foreach (\App\Models\Room::ALLOWED_FACILITIES as $facility)
+                                <label
+                                    class="flex min-h-10 cursor-pointer items-center gap-3 rounded-lg px-2
+                                           text-sm text-zinc-700 transition hover:bg-zinc-100
+                                           dark:text-zinc-200 dark:hover:bg-zinc-800"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        name="facilities[]"
+                                        value="{{ $facility }}"
+                                        @checked(in_array($facility, $selectedFacilities, true))
+                                        data-auto-filter-change
+                                        class="size-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500
+                                               dark:border-zinc-600 dark:bg-zinc-800"
+                                    >
+
+                                    {{ str($facility)->replace('_', ' ')->title() }}
+                                </label>
+                            @endforeach
+                        </div>
+                    </details>
+                </div>
+
+                <div>
+                    <label for="availability-type" class="mb-1 block text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+                        Room type
+                    </label>
+
+                    <div class="relative">
+                        <select
+                            id="availability-type"
+                            name="type"
+                            data-auto-filter-select
+                            class="min-h-11 w-full appearance-none rounded-xl border border-zinc-300 bg-white px-3 pe-11 text-sm
+                                   dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        >
+                            <option value="">All types</option>
+                            @foreach (\App\Models\Room::ALLOWED_TYPES as $roomType)
+                                <option value="{{ $roomType }}" @selected(($filters['type'] ?? '') === $roomType)>
+                                    {{ str($roomType)->headline() }}
+                                </option>
+                            @endforeach
+                        </select>
+
+                        <svg
+                            class="pointer-events-none absolute end-4 top-1/2 size-4 -translate-y-1/2 text-zinc-500 dark:text-zinc-400"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <path d="m5 7 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
+                        </svg>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="availability-capacity" class="mb-1 block text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+                        At least people
+                    </label>
+
+                    <div class="relative">
+                        <select
+                            id="availability-capacity"
+                            name="capacity"
+                            data-auto-filter-select
+                            @disabled(! $canChooseCapacity)
+                            class="min-h-11 w-full appearance-none rounded-xl border border-zinc-300 bg-white px-3 pe-11 text-sm
+                                   disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700
+                                   dark:bg-zinc-800 dark:text-white"
+                        >
+                            <option value="">
+                                {{ $canChooseCapacity ? 'Any size' : 'Choose floor and facility first' }}
+                            </option>
+
+                            @foreach ($capacityOptions as $capacityOption)
+                                <option value="{{ $capacityOption }}" @selected((string) ($filters['capacity'] ?? '') === (string) $capacityOption)>
+                                    {{ $capacityOption }}+ {{ \Illuminate\Support\Str::plural('person', $capacityOption) }}
+                                </option>
+                            @endforeach
+                        </select>
+
+                        <svg
+                            class="pointer-events-none absolute end-4 top-1/2 size-4 -translate-y-1/2 text-zinc-500 dark:text-zinc-400"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <path d="m5 7 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
+                        </svg>
+                    </div>
+                </div>
             </form>
         </section>
 
@@ -287,7 +561,6 @@
                 <article
                     class="rounded-2xl border border-zinc-200
                            bg-white p-5 shadow-sm
-                           transition-colors hover:bg-zinc-500/5
                            dark:border-zinc-700 dark:bg-zinc-900"
                 >
                     <div class="flex items-start justify-between gap-4">
@@ -408,6 +681,7 @@
                             'date' => $selectedDate
                                 ->subDay()
                                 ->format('Y-m-d'),
+                            ...$filterQuery,
                         ])"
                         wire:navigate
                     >
@@ -423,6 +697,7 @@
                             'date' => $selectedDate
                                 ->addDay()
                                 ->format('Y-m-d'),
+                            ...$filterQuery,
                         ])"
                         wire:navigate
                     >
@@ -827,7 +1102,44 @@
                 </div>
             </div>
 
-            {{-- 时间表状态说明 --}}
+            @if ($rooms->isEmpty())
+                {{--
+                    空状态不建立宽时间表，避免没有结果时仍出现横向滚动条，
+                    并让提示保持在卡片中央。
+                --}}
+                <div
+                    class="flex min-h-72 flex-col items-center justify-center px-6 py-16 text-center"
+                >
+                    <span
+                        class="flex size-12 items-center justify-center rounded-2xl bg-blue-500/10 text-xl font-bold text-blue-600 dark:text-blue-400"
+                        aria-hidden="true"
+                    >
+                        ⌕
+                    </span>
+
+                    <p class="mt-4 font-semibold text-zinc-900 dark:text-white">
+                        No rooms available
+                    </p>
+
+                    <p class="mt-2 max-w-sm text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                        No rooms match the current date and filter selection.
+                        Try changing a filter or reset all filters.
+                    </p>
+
+                    <flux:button
+                        :href="route('room-availability.index', [
+                            'date' => $selectedDate->format('Y-m-d'),
+                        ])"
+                        variant="ghost"
+                        size="sm"
+                        class="mt-5 min-h-10"
+                        wire:navigate
+                    >
+                        Reset filters
+                    </flux:button>
+                </div>
+            @else
+                {{-- 时间表状态说明 --}}
             <div
                 class="flex flex-wrap items-center
                        gap-x-6 gap-y-3
@@ -863,9 +1175,8 @@
                 </span>
             </div>
 
-       {{-- 横向滚动时间表 --}}
-{{-- 横向滚动时间表 --}}
-<div
+                {{-- 横向滚动时间表 --}}
+                <div
     data-horizontal-scroll
     tabindex="0"
     onwheel="
@@ -988,18 +1299,6 @@
            focus:outline-none focus:ring-2
            focus:ring-inset focus:ring-blue-500"
 >
-    <table
-        class="w-full min-w-[1500px]
-               border-collapse text-sm"
-    >
-    <table
-        class="w-full min-w-[1500px]
-               border-collapse text-sm"
-    >
-    <table
-        class="w-full min-w-[1500px]
-               border-collapse text-sm"
-    >
                 <table
                     class="w-full min-w-[1500px]
                            border-collapse text-sm"
@@ -1053,7 +1352,7 @@
                         class="divide-y divide-zinc-200
                                dark:divide-zinc-800"
                     >
-                        @forelse ($rooms as $room)
+                        @foreach ($rooms as $room)
                             <tr>
                                 {{-- Sticky 房间资料 --}}
                                 <th
@@ -1269,34 +1568,127 @@
                                     </td>
                                 @endforeach
                             </tr>
-                        @empty
-                            <tr>
-                                <td
-                                    colspan="{{ $slots->count() + 1 }}"
-                                    class="px-6 py-16 text-center"
-                                >
-                                    <p
-                                        class="font-semibold
-                                               text-zinc-900
-                                               dark:text-white"
-                                    >
-                                        No rooms available
-                                    </p>
-
-                                    <p
-                                        class="mt-2 text-sm
-                                               text-zinc-500
-                                               dark:text-zinc-400"
-                                    >
-                                        Rooms added to the system
-                                        will appear here.
-                                    </p>
-                                </td>
-                            </tr>
-                        @endforelse
+                        @endforeach
                     </tbody>
                 </table>
             </div>
+            @endif
         </section>
     </div>
+
+    <script data-navigate-once>
+        (() => {
+            if (window.smartLibraryAutoFilterInitialised) {
+                return;
+            }
+
+            window.smartLibraryAutoFilterInitialised = true;
+
+            let inputTimer;
+
+            const submitFilterForm = (form, delay = 0) => {
+                window.clearTimeout(inputTimer);
+
+                inputTimer = window.setTimeout(() => {
+                    form.requestSubmit();
+                }, delay);
+            };
+
+            document.addEventListener('input', (event) => {
+                const input = event.target;
+
+                if (!(input instanceof HTMLInputElement) || !input.matches('[data-auto-filter-input]')) {
+                    return;
+                }
+
+                const form = input.closest('form[data-auto-filter-form]');
+
+                if (form instanceof HTMLFormElement) {
+                    submitFilterForm(form, 350);
+                }
+            });
+
+            document.addEventListener('change', (event) => {
+                const control = event.target;
+
+                if (
+                    !(
+                        control instanceof HTMLSelectElement
+                        || control instanceof HTMLInputElement
+                    )
+                    || !control.matches(
+                        '[data-auto-filter-select], [data-auto-filter-change]'
+                    )
+                ) {
+                    return;
+                }
+
+                const form = control.closest(
+                    'form[data-auto-filter-form]'
+                );
+
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                /*
+                 * 根据 Controller 传来的真实 type -> location mapping
+                 * 自动带出 Floor。只有一个对应地点时才会改值，
+                 * 因此不会覆盖有多个楼层可选的 type。
+                 */
+                if (
+                    control instanceof HTMLSelectElement
+                    && control.id === 'availability-type'
+                ) {
+                    const locationsByType = JSON.parse(
+                        form.dataset.typeLocations || '{}'
+                    );
+
+                    const matchingLocations =
+                        locationsByType[control.value] || [];
+
+                    const locationSelect = form.querySelector(
+                        '#availability-location'
+                    );
+
+                    if (
+                        locationSelect instanceof HTMLSelectElement
+                        && matchingLocations.length === 1
+                    ) {
+                        locationSelect.value = matchingLocations[0];
+                    }
+                }
+
+                /*
+                 * 若某个楼层在数据库中只出现一种房型，自动带出该房型。
+                 * 例如 First Floor 目前只有 Study room 时，选楼层后会显示
+                 * Study；日后一个楼层有多种房型时不覆盖使用者选择。
+                 */
+                if (
+                    control instanceof HTMLSelectElement
+                    && control.id === 'availability-location'
+                ) {
+                    const typesByLocation = JSON.parse(
+                        form.dataset.locationTypes || '{}'
+                    );
+
+                    const matchingTypes =
+                        typesByLocation[control.value] || [];
+
+                    const typeSelect = form.querySelector(
+                        '#availability-type'
+                    );
+
+                    if (
+                        typeSelect instanceof HTMLSelectElement
+                        && matchingTypes.length === 1
+                    ) {
+                        typeSelect.value = matchingTypes[0];
+                    }
+                }
+
+                submitFilterForm(form);
+            });
+        })();
+    </script>
 </x-layouts::app>

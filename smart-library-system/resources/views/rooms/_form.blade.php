@@ -128,3 +128,49 @@
         placeholder="Optional room description"
     >{{ old('description', $currentRoom?->description) }}</flux:textarea>
 </div>
+
+@once
+    <script data-navigate-once>
+        (() => {
+            document.addEventListener('change', (event) => {
+                const typeField = event.target;
+
+                if (
+                    !(typeField instanceof HTMLSelectElement)
+                    || typeField.name !== 'type'
+                ) {
+                    return;
+                }
+
+                const form = typeField.closest(
+                    'form[data-room-location-form]'
+                );
+
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                const locationsByType = JSON.parse(
+                    form.dataset.typeLocations || '{}'
+                );
+                const matchingLocations =
+                    locationsByType[typeField.value] || [];
+                const locationField = form.querySelector(
+                    '[name="location"]'
+                );
+
+                if (
+                    matchingLocations.length !== 1
+                    || !(locationField instanceof HTMLInputElement)
+                ) {
+                    return;
+                }
+
+                locationField.value = matchingLocations[0];
+                locationField.dispatchEvent(
+                    new Event('input', { bubbles: true })
+                );
+            });
+        })();
+    </script>
+@endonce

@@ -93,8 +93,8 @@
                         class="mt-1 text-sm
                                text-zinc-500 dark:text-zinc-400"
                     >
-                        Review upcoming, active and completed
-                        room maintenance records.
+                    Monitor scheduled and in-progress maintenance
+                    that currently affects room availability.
                     </p>
                 </div>
 
@@ -104,16 +104,16 @@
                            text-zinc-600
                            dark:bg-zinc-800 dark:text-zinc-300"
                 >
-                    {{ $maintenances->total() }}
+                    {{ $currentMaintenances->count() }}
 
                     {{ Str::plural(
                         'record',
-                        $maintenances->total()
+                        $currentMaintenances->count()
                     ) }}
                 </span>
             </div>
 
-            @if ($maintenances->isEmpty())
+            @if ($currentMaintenances->isEmpty())
                 {{--
                     没有 Maintenance 时不使用 min-w-[1000px] Table。
 
@@ -138,15 +138,15 @@
                         class="mt-4 font-semibold
                                text-zinc-900 dark:text-white"
                     >
-                        No maintenance scheduled
+                        No current maintenance
                     </h3>
 
                     <p
                         class="mt-2 max-w-sm text-sm leading-6
                                text-zinc-500 dark:text-zinc-400"
                     >
-                        Schedule maintenance to block unavailable
-                        rooms and avoid reservation conflicts.
+                        All rooms are currently clear. Schedule maintenance
+                        when a room needs to be temporarily blocked.
                     </p>
 
                     <flux:button
@@ -217,7 +217,7 @@
                             class="divide-y divide-zinc-200
                                    dark:divide-zinc-800"
                         >
-                            @foreach ($maintenances as $maintenance)
+                            @foreach ($currentMaintenances as $maintenance)
                                 @php
                                     /*
                                      * 根据状态选择 Badge 颜色。
@@ -410,15 +410,237 @@
                 </div>
             @endif
 
-            {{-- Pagination --}}
-            @if ($maintenances->hasPages())
-                <div
-                    class="border-t border-zinc-200
-                           px-5 py-4 dark:border-zinc-700"
-                >
-                    {{ $maintenances->links() }}
+        </section>
+
+        {{-- History 保持在独立区块，避免和当前维修资料混在一起。 --}}
+        <section
+            class="overflow-hidden rounded-2xl border border-zinc-200 bg-white
+                   shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+        >
+            <div
+                class="flex flex-col gap-4 border-b border-zinc-200 px-5 py-4
+                       lg:flex-row lg:items-center lg:justify-between
+                       dark:border-zinc-700"
+            >
+                <div>
+                    <h2 class="font-semibold text-zinc-900 dark:text-white">
+                        Maintenance History
+                    </h2>
+
+                    <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                        Search completed and cancelled maintenance records.
+                    </p>
                 </div>
+
+                <form
+                    method="GET"
+                    action="{{ route('maintenances.index') }}"
+                    data-auto-filter-form
+                    class="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto"
+                >
+                    <label for="maintenance-search" class="sr-only">
+                        Search maintenance history
+                    </label>
+
+                    <input
+                        id="maintenance-search"
+                        name="search"
+                        type="search"
+                        data-auto-filter-input
+                        value="{{ $search }}"
+                        placeholder="Room, title or description"
+                        class="min-h-11 w-full rounded-xl border border-zinc-300 bg-white
+                               px-3 text-sm outline-none placeholder:text-zinc-400
+                               focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
+                               sm:w-64 dark:border-zinc-600 dark:bg-zinc-800
+                               dark:text-white"
+                    >
+
+                    <div class="relative w-full sm:w-44">
+                        <select
+                            name="status"
+                            data-auto-filter-select
+                            class="min-h-11 w-full appearance-none rounded-xl border border-zinc-300 bg-white px-3 pe-11
+                                   text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                        >
+                            <option value="">All history</option>
+                            <option value="completed" @selected($status === 'completed')>
+                                Completed
+                            </option>
+                            <option value="cancelled" @selected($status === 'cancelled')>
+                                Cancelled
+                            </option>
+                        </select>
+
+                        <svg
+                            class="pointer-events-none absolute end-4 top-1/2 size-4 -translate-y-1/2 text-zinc-500 dark:text-zinc-400"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <path d="m5 7 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
+                        </svg>
+                    </div>
+
+                    @if ($search !== '' || $status !== null)
+                        <flux:button
+                            :href="route('maintenances.index')"
+                            variant="ghost"
+                            class="min-h-11"
+                            wire:navigate
+                        >
+                            Clear
+                        </flux:button>
+                    @endif
+                </form>
+            </div>
+
+            @if ($historyMaintenances->isEmpty())
+                <div class="px-6 py-14 text-center">
+                    <h3 class="font-semibold text-zinc-900 dark:text-white">
+                        {{ $search !== '' || $status !== null
+                            ? 'No matching history records'
+                            : 'No maintenance history yet' }}
+                    </h3>
+
+                    <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                        {{ $search !== '' || $status !== null
+                            ? 'Try a different room number, maintenance title or status.'
+                            : 'Completed and cancelled maintenance records will appear here.' }}
+                    </p>
+                </div>
+            @else
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[860px] table-fixed text-sm">
+                        <thead
+                            class="bg-zinc-100 text-left text-zinc-700
+                                   dark:bg-zinc-800 dark:text-zinc-200"
+                        >
+                            <tr>
+                                <th class="w-[20%] px-6 py-4 font-semibold">
+                                    Room
+                                </th>
+                                <th class="w-[29%] px-6 py-4 font-semibold">
+                                    Maintenance
+                                </th>
+                                <th class="w-[29%] px-6 py-4 font-semibold">
+                                    Period
+                                </th>
+                                <th class="w-[22%] px-6 py-4 font-semibold">
+                                    Status
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody
+                            class="divide-y divide-zinc-200
+                                   dark:divide-zinc-700"
+                        >
+                            @foreach ($historyMaintenances as $maintenance)
+                                @php
+                                    $statusColor = match ($maintenance->status) {
+                                        'completed' => 'green',
+                                        'cancelled' => 'zinc',
+                                        default => 'zinc',
+                                    };
+                                @endphp
+
+                                <tr
+                                    class="transition-colors duration-150 hover:bg-zinc-50
+                                           dark:hover:bg-zinc-800/70"
+                                >
+                                    <td class="px-6 py-5">
+                                        <p class="font-semibold text-zinc-900 dark:text-white">
+                                            {{ $maintenance->room->room_number }}
+                                        </p>
+                                        <p class="mt-1 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                                            {{ $maintenance->room->name }}
+                                        </p>
+                                    </td>
+
+                                    <td class="px-6 py-5">
+                                        <p class="font-semibold text-zinc-900 dark:text-white">
+                                            {{ $maintenance->title }}
+                                        </p>
+                                        <p class="mt-1 truncate text-zinc-500 dark:text-zinc-400">
+                                            {{ $maintenance->description ?: 'No description provided' }}
+                                        </p>
+                                    </td>
+
+                                    <td class="px-6 py-5">
+                                        <p class="font-medium text-zinc-900 dark:text-white">
+                                            {{ $maintenance->starts_at->format('d M Y, h:i A') }}
+                                        </p>
+                                        <p class="mt-1 text-zinc-500 dark:text-zinc-400">
+                                            Ended {{ $maintenance->ends_at->format('d M Y, h:i A') }}
+                                        </p>
+                                    </td>
+
+                                    <td class="px-6 py-5">
+                                        <flux:badge :color="$statusColor">
+                                            {{ str($maintenance->status)->headline() }}
+                                        </flux:badge>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                @if ($historyMaintenances->hasPages())
+                    <div class="border-t border-zinc-200 px-5 py-4 dark:border-zinc-700">
+                        {{ $historyMaintenances->links() }}
+                    </div>
+                @endif
             @endif
         </section>
     </div>
+
+    <script data-navigate-once>
+        (() => {
+            if (window.smartLibraryAutoFilterInitialised) {
+                return;
+            }
+
+            window.smartLibraryAutoFilterInitialised = true;
+
+            let inputTimer;
+
+            const submitFilterForm = (form, delay = 0) => {
+                window.clearTimeout(inputTimer);
+
+                inputTimer = window.setTimeout(() => {
+                    form.requestSubmit();
+                }, delay);
+            };
+
+            document.addEventListener('input', (event) => {
+                const input = event.target;
+
+                if (!(input instanceof HTMLInputElement) || !input.matches('[data-auto-filter-input]')) {
+                    return;
+                }
+
+                const form = input.closest('form[data-auto-filter-form]');
+
+                if (form instanceof HTMLFormElement) {
+                    submitFilterForm(form, 350);
+                }
+            });
+
+            document.addEventListener('change', (event) => {
+                const select = event.target;
+
+                if (!(select instanceof HTMLSelectElement) || !select.matches('[data-auto-filter-select]')) {
+                    return;
+                }
+
+                const form = select.closest('form[data-auto-filter-form]');
+
+                if (form instanceof HTMLFormElement) {
+                    submitFilterForm(form);
+                }
+            });
+        })();
+    </script>
 </x-layouts::app>

@@ -42,9 +42,15 @@ class Profile extends Component
      */
     public function mount(): void
     {
-        $this->name = Auth::user()->name;
-        $this->email = Auth::user()->email;
-        $this->phone = Auth::user()->phone ?? '';
+        $user = $this->authenticatedUser();
+
+        /*
+         * Blade 使用 wire:model 绑定 profileName 与 profileEmail，
+         * 因此必须写入相同的公开 Livewire 属性。
+         */
+        $this->profileName = (string) $user->name;
+        $this->profileEmail = (string) $user->email;
+        $this->phone = (string) ($user->phone ?? '');
     }
 
     /**
@@ -63,6 +69,7 @@ class Profile extends Component
         $validated = $this->validate([
             'profileName' => $this->nameRules(),
             'profileEmail' => $this->emailRules($user->id),
+            'phone' => $this->phoneRules(),
         ]);
 
         /*
@@ -75,6 +82,7 @@ class Profile extends Component
         $user->fill([
             'name' => $validated['profileName'],
             'email' => $validated['profileEmail'],
+            'phone' => $validated['phone'],
         ]);
 
         /*

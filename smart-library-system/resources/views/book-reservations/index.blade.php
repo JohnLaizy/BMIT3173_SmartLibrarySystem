@@ -1,18 +1,31 @@
 <x-layouts::app :title="__('Book Reservations')">
-    <div class="mx-auto w-full max-w-7xl space-y-8 p-6">
-        <div>
+    <div
+        data-page-transition
+        class="mx-auto w-full max-w-7xl space-y-7 px-2 py-2 sm:px-4"
+    >
+        <header>
+            <div
+                class="mb-3 inline-flex items-center gap-2 rounded-full
+                       border border-fuchsia-500/20 bg-fuchsia-500/10 px-3 py-1
+                       text-xs font-bold uppercase tracking-wider
+                       text-fuchsia-700 dark:text-fuchsia-300"
+            >
+                <span class="size-2 rounded-full bg-fuchsia-500" aria-hidden="true"></span>
+                Book collection
+            </div>
+
             <flux:heading size="xl">
                 {{ __('Book Reservations') }}
             </flux:heading>
 
-            <flux:text class="mt-2">
+            <flux:text class="mt-2 max-w-2xl">
                 @if (auth()->user()->isStudent())
                     {{ __('Request books and track your reservations.') }}
                 @else
                     {{ __('Approve, reject and process reservation collection.') }}
                 @endif
             </flux:text>
-        </div>
+        </header>
 
         @if (session('success'))
             <flux:callout
@@ -46,7 +59,10 @@
         @endif
 
         @if (auth()->user()->isStudent())
-            <section>
+            <section
+                class="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm
+                       dark:border-zinc-700 dark:bg-zinc-900"
+            >
                 <flux:heading size="lg">
                     {{ __('Reserve a Book') }}
                 </flux:heading>
@@ -62,8 +78,8 @@
 
                         <article
                             class="rounded-xl border border-zinc-200
-                                   bg-white p-5 dark:border-zinc-700
-                                   dark:bg-zinc-900"
+                                   bg-white p-5 shadow-sm dark:border-zinc-700
+                                   dark:bg-slate-800/70"
                         >
                             <flux:heading>
                                 {{ $book->title }}
@@ -123,20 +139,23 @@
             </section>
         @endif
 
-        <section>
-            <flux:heading size="lg">
-                @if (auth()->user()->isStudent())
-                    {{ __('My Reservations') }}
-                @else
-                    {{ __('Reservation Management') }}
-                @endif
-            </flux:heading>
+            <section
+                class="overflow-hidden rounded-2xl border-2 border-zinc-700 bg-zinc-950 text-zinc-100 shadow-sm"
+            >
+                <div class="border-b-2 border-zinc-700 bg-zinc-900 px-5 py-4">
+                    <flux:heading size="lg">
+                        @if (auth()->user()->isStudent())
+                            {{ __('My Reservations') }}
+                        @else
+                            {{ __('Reservation Management') }}
+                        @endif
+                    </flux:heading>
+                </div>
 
-            <div class="mt-4 overflow-hidden rounded-xl border
-                        border-zinc-200 dark:border-zinc-700">
+            <div class="overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-zinc-50 dark:bg-zinc-900">
+                    <table class="w-full border-collapse text-left text-sm">
+                        <thead class="border-b-2 border-zinc-700 bg-zinc-900 text-zinc-200">
                             <tr>
                                 @if (auth()->user()->isLibrarian())
                                     <th class="px-4 py-3">
@@ -166,8 +185,7 @@
                             </tr>
                         </thead>
 
-                        <tbody class="divide-y divide-zinc-200
-                                      dark:divide-zinc-700">
+                        <tbody class="divide-y-2 divide-zinc-800 bg-zinc-950">
                             @forelse ($reservations as $reservation)
                                 @php
                                     $badgeColor = match (
@@ -183,7 +201,7 @@
                                     };
                                 @endphp
 
-                                <tr>
+                                <tr class="transition-colors hover:bg-zinc-900/80">
                                     @if (auth()->user()->isLibrarian())
                                         <td class="px-4 py-3">
                                             <div class="font-medium">

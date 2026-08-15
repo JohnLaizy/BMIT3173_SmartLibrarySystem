@@ -38,6 +38,7 @@ class ProfileUpdateTest extends TestCase
         $response = Livewire::test(Profile::class)
             ->set('profileName', 'Test User')
             ->set('profileEmail', 'test@example.com')
+            ->set('phone', '012-3456789')
             ->call('updateProfileInformation');
 
         $response->assertHasNoErrors();
@@ -52,6 +53,11 @@ class ProfileUpdateTest extends TestCase
         $this->assertEquals(
             'test@example.com',
             $user->email
+        );
+
+        $this->assertEquals(
+            '012-3456789',
+            $user->phone
         );
 
         /*
@@ -76,6 +82,7 @@ class ProfileUpdateTest extends TestCase
         $response = Livewire::test(Profile::class)
             ->set('profileName', 'Test User')
             ->set('profileEmail', $user->email)
+            ->set('phone', '012-3456789')
             ->call('updateProfileInformation');
 
         $response->assertHasNoErrors();
@@ -142,6 +149,7 @@ class ProfileUpdateTest extends TestCase
         $user = User::factory()->create([
             'name' => 'Profile Test User',
             'email' => 'profile-test@example.com',
+            'phone' => '012-3456789',
         ]);
 
         $this->actingAs($user);
@@ -163,6 +171,10 @@ class ProfileUpdateTest extends TestCase
             ->assertSet(
                 'profileEmail',
                 'profile-test@example.com'
+            )
+            ->assertSet(
+                'phone',
+                '012-3456789'
             );
     }
 }
