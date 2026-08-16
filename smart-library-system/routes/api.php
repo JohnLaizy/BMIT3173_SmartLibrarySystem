@@ -3,8 +3,10 @@
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\RoomAvailabilityApiController;
+use App\Http\Controllers\RoomReservationApiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -15,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
+
 
 /*
 |--------------------------------------------------------------------------
@@ -30,6 +33,7 @@ Route::get(
     ]
 )->name('api.bookings.availability');
 
+
 /*
 |--------------------------------------------------------------------------
 | Version 1 APIs
@@ -37,6 +41,7 @@ Route::get(
 */
 
 Route::prefix('v1')->group(function () {
+
 
     /*
     |--------------------------------------------------------------------------
@@ -54,6 +59,7 @@ Route::prefix('v1')->group(function () {
         [BookController::class, 'show']
     );
 
+
     /*
     |--------------------------------------------------------------------------
     | Room Availability API
@@ -68,6 +74,22 @@ Route::prefix('v1')->group(function () {
         ]
     )->name('api.rooms.availability');
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Room Reservation Information API
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/room-reservations',
+        [
+            RoomReservationApiController::class,
+            'index',
+        ]
+    )->name('api.room-reservations.index');
+
+
     /*
     |--------------------------------------------------------------------------
     | Protected APIs
@@ -76,9 +98,12 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:sanctum')
         ->group(function () {
+
             Route::post(
                 '/books',
                 [BookController::class, 'store']
             );
+
         });
+
 });
