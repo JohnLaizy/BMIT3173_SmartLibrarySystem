@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\RoomReservation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class RoomReservationApiController extends Controller
 {
@@ -14,6 +13,17 @@ class RoomReservationApiController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        /*
+         * Request tracking identifier
+         * required for Web Service monitoring
+         */
+        $request->validate([
+            'request_id' => [
+                'required',
+                'string',
+            ],
+        ]);
+
         $reservations = RoomReservation::query()
             ->with([
                 'room',
@@ -23,49 +33,58 @@ class RoomReservationApiController extends Controller
             ->get();
 
         return response()->json([
-            'request_id' => (string) Str::uuid(),
+            /*
+             * Return the same request ID received
+             * from the client request.
+             */
+            'request_id' =>
+                $request->input('request_id'),
 
-            'timestamp' => now()->toISOString(),
+            'timestamp' =>
+                now()->toISOString(),
 
-            'status' => 'success',
+            'status' =>
+                'success',
 
-            'data' => $reservations->map(function ($reservation) {
-                return [
-                    'reservation_id' =>
-                        $reservation->id,
+            'data' =>
+                $reservations->map(function ($reservation) {
 
-                    'room' => [
-                        'id' =>
-                            $reservation->room->id,
+                    return [
+                        'reservation_id' =>
+                            $reservation->id,
 
-                        'room_number' =>
-                            $reservation->room->room_number,
+                        'room' => [
+                            'id' =>
+                                $reservation->room->id,
 
-                        'name' =>
-                            $reservation->room->name,
-                    ],
+                            'room_number' =>
+                                $reservation->room->room_number,
 
-                    'student' => [
-                        'id' =>
-                            $reservation->user->id,
+                            'name' =>
+                                $reservation->room->name,
+                        ],
 
-                        'name' =>
-                            $reservation->user->name,
-                    ],
+                        'student' => [
+                            'id' =>
+                                $reservation->user->id,
 
-                    'purpose' =>
-                        $reservation->purpose,
+                            'name' =>
+                                $reservation->user->name,
+                        ],
 
-                    'starts_at' =>
-                        $reservation->starts_at,
+                        'purpose' =>
+                            $reservation->purpose,
 
-                    'ends_at' =>
-                        $reservation->ends_at,
+                        'starts_at' =>
+                            $reservation->starts_at,
 
-                    'status' =>
-                        $reservation->status,
-                ];
-            }),
+                        'ends_at' =>
+                            $reservation->ends_at,
+
+                        'status' =>
+                            $reservation->status,
+                    ];
+                }),
         ]);
     }
 }
