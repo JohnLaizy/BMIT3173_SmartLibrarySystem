@@ -45,10 +45,8 @@ class RoomReservationService
                     ->firstOrFail();
 
                 /*
-                 * Strategy Pattern
-                 *
-                 * 根据当前登录用户的角色选择不同的
-                 * Reservation Strategy。
+                 * 根据当前用户角色解析
+                 * Reservation 所属的 Student。
                  *
                  * Student:
                  * - 只能替自己预约。
@@ -56,12 +54,14 @@ class RoomReservationService
                  * Librarian:
                  * - 可以替指定的 Student 预约。
                  */
-                $strategy = $this->strategyFor($actor);
+                $resolver =
+                    $this->targetResolverFor($actor);
 
-                $targetUser = $strategy->resolveTargetUser(
-                    $actor,
-                    $data
-                );
+                $targetUser =
+                    $resolver->resolveTargetUser(
+                        $actor,
+                        $data
+                    );
 
                 /*
                  * Laravel 会根据 config/app.php 的时区
@@ -110,7 +110,8 @@ class RoomReservationService
                         'purpose' => $data['purpose'],
                         'starts_at' => $startsAt,
                         'ends_at' => $endsAt,
-                        'status' => RoomReservation::STATUS_CONFIRMED,
+                        'status' =>
+                            RoomReservation::STATUS_CONFIRMED,
                     ])
                     ->load([
                         'room',
@@ -176,18 +177,18 @@ class RoomReservationService
                     ->firstOrFail();
 
                 /*
-                 * Strategy Pattern
-                 *
-                 * Student 和 Librarian 使用不同策略
-                 * 决定预约所属的 Student。
+                 * 根据当前用户角色解析
+                 * Reservation 所属的 Student。
                  */
-                $strategy = $this->strategyFor($actor);
+                $resolver =
+                    $this->targetResolverFor($actor);
 
-                $targetUser = $strategy->resolveTargetUser(
-                    $actor,
-                    $data,
-                    $lockedReservation
-                );
+                $targetUser =
+                    $resolver->resolveTargetUser(
+                        $actor,
+                        $data,
+                        $lockedReservation
+                    );
 
                 $startsAt = CarbonImmutable::parse(
                     $data['starts_at']
@@ -250,19 +251,18 @@ class RoomReservationService
     }
 
     /**
-     * 根据用户角色选择 Reservation Strategy。
-     *
-     * 这是 Strategy Pattern 的 Context Selection。
+     * 根据当前用户角色决定
+     * Reservation 所属 Student 的解析方式。
      */
-    private function strategyFor(
+    private function targetResolverFor(
         User $actor
-    ): RoomReservationStrategy {
+    ): RoomReservationTargetResolver {
         if ($actor->isLibrarian()) {
-            return new LibrarianRoomReservationStrategy();
+            return new LibrarianRoomReservationTargetResolver();
         }
 
         if ($actor->isStudent()) {
-            return new StudentRoomReservationStrategy();
+            return new StudentRoomReservationTargetResolver();
         }
 
         throw ValidationException::withMessages([
