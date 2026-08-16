@@ -7,12 +7,17 @@ use App\Http\Requests\UpdateRoomReservationRequest;
 use App\Models\Room;
 use App\Models\RoomReservation;
 use App\Models\User;
+use App\Services\CapacityBasedRoomSelectionStrategy;
+use App\Services\FacilityBasedRoomSelectionStrategy;
+use App\Services\RoomAvailabilityClientService;
 use App\Services\RoomReservationService;
+use App\Services\RoomSelectionContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class RoomReservationController extends Controller
@@ -42,14 +47,22 @@ class RoomReservationController extends Controller
          */
         $upcomingReservations =
             RoomReservation::query()
-                ->with([
-                    'room',
-                    'user',
-                ])
-                ->where(
-                    'status',
-                    RoomReservation::STATUS_CONFIRMED
+            ->with([
+                'room',
+                'user',
+            ])
+            ->where(
+                'status',
+                RoomReservation::STATUS_CONFIRMED
+            )
+            ->where('ends_at', '>', now())
+            ->when(
+                $user->isStudent(),
+                fn($query) => $query->where(
+                    'user_id',
+                    $user->id
                 )
+
                 ->where('ends_at', '>', now())
                 ->when(
                     $user->isStudent(),
@@ -58,49 +71,52 @@ class RoomReservationController extends Controller
                         $user->id
                     )
                 )
-                ->orderBy('starts_at')
-                ->paginate(
-                    5,
-                    ['*'],
-                    'upcoming_page'
-                )
-                ->withQueryString();
+
+            )
+            ->orderBy('starts_at')
+            ->paginate(
+                10,
+                ['*'],
+                'upcoming_page'
+            );
+
 
         /*
          * 取得已经取消或已经结束的预约。
          */
         $reservationHistory =
             RoomReservation::query()
-                ->with([
-                    'room',
-                    'user',
-                ])
-                ->where(function ($query) {
-                    $query
-                        ->where(
-                            'status',
-                            RoomReservation::STATUS_CANCELLED
-                        )
-                        ->orWhere(
-                            'ends_at',
-                            '<=',
-                            now()
-                        );
-                })
-                ->when(
-                    $user->isStudent(),
-                    fn ($query) => $query->where(
-                        'user_id',
-                        $user->id
+            ->with([
+                'room',
+                'user',
+            ])
+            ->where(function ($query) {
+                $query
+                    ->where(
+                        'status',
+                        RoomReservation::STATUS_CANCELLED
                     )
+                    ->orWhere(
+                        'ends_at',
+                        '<=',
+                        now()
+                    );
+            })
+            ->when(
+                $user->isStudent(),
+                fn($query) => $query->where(
+                    'user_id',
+                    $user->id
                 )
-                ->latest('starts_at')
-                ->paginate(
-                    5,
-                    ['*'],
-                    'history_page'
-                )
-                ->withQueryString();
+
+            )
+            ->latest('starts_at')
+            ->paginate(
+                10,
+                ['*'],
+                'history_page'
+            );
+
 
         return view(
             'room-reservations.index',
@@ -113,12 +129,11 @@ class RoomReservationController extends Controller
 
     /**
      * 显示建立预约页面。
-     *
-     * 如果用户从 Availability Table 点击绿色 Slot，
-     * room_id、date 和 start 会自动传入这个页面。
      */
-    public function create(Request $request): View
-    {
+    public function create(
+        Request $request,
+        RoomAvailabilityClientService $availabilityClient
+    ): View {
         Gate::authorize(
             'create',
             RoomReservation::class
@@ -132,7 +147,8 @@ class RoomReservationController extends Controller
         );
 
         /*
-         * 验证从 Availability Table 传入的参数。
+         * 验证从 Availability 页面以及
+         * Room Selection Strategy 表单传入的参数。
          */
         $validated = Validator::make(
             $request->query(),
@@ -152,6 +168,32 @@ class RoomReservationController extends Controller
                     'nullable',
                     'date_format:H:i',
                 ],
+
+                'selection_strategy' => [
+                    'nullable',
+                    Rule::in([
+                        'capacity',
+                        'facility',
+                    ]),
+                ],
+
+                'required_capacity' => [
+                    'nullable',
+                    'integer',
+                    'min:1',
+                ],
+
+                'required_facilities' => [
+                    'nullable',
+                    'array',
+                ],
+
+                'required_facilities.*' => [
+                    'string',
+                    Rule::in(
+                        Room::ALLOWED_FACILITIES
+                    ),
+                ],
             ]
         )->validate();
 
@@ -168,31 +210,140 @@ class RoomReservationController extends Controller
         $chosenStart = null;
 
         /*
-         * 如果用户点击 Availability Slot，
-         * 自动建立完整的预约开始时间。
+         * 如果用户从 Availability Slot 进入，
+         * 自动建立完整预约开始时间。
          */
         if (isset($validated['start'])) {
             [$hour, $minute] = array_map(
                 'intval',
-                explode(':', $validated['start'])
+                explode(
+                    ':',
+                    $validated['start']
+                )
             );
 
-            $chosenStart = $selectedDate->setTime(
-                $hour,
-                $minute
-            );
+            $chosenStart =
+                $selectedDate->setTime(
+                    $hour,
+                    $minute
+                );
         }
 
         /*
-         * 预约表单只列出基本状态为 available 的房间。
-         *
-         * 最终冲突检查仍然由
-         * RoomReservationService 负责。
+         * 先取得所有基本状态为 available 的房间。
          */
         $rooms = Room::query()
-            ->where('status', 'available')
-            ->orderBy('room_number')
+            ->where(
+                'status',
+                'available'
+            )
+            ->orderBy(
+                'room_number'
+            )
             ->get();
+
+        /*
+ * Consume Room Availability Web Service
+ *
+ * Get available rooms from Room Availability API.
+ */
+        $availableRoomsFromService = [];
+
+        if ($chosenStart) {
+
+            $availabilityResponse =
+                $availabilityClient->getAvailableRooms(
+                    $chosenStart->format(
+                        'Y-m-d H:i:s'
+                    ),
+                    $chosenStart
+                        ->addHour()
+                        ->format(
+                            'Y-m-d H:i:s'
+                        )
+                );
+
+            if (
+                ($availabilityResponse['success'] ?? false)
+                &&
+                isset(
+                    $availabilityResponse['data']['rooms']
+                )
+            ) {
+                $availableRoomsFromService =
+                    $availabilityResponse['data']['rooms'];
+            }
+        }
+
+        /*
+         * Strategy Pattern
+         *
+         * 用户可以在 runtime 选择不同的
+         * Room Selection Strategy。
+         */
+        $selectionStrategy =
+            $validated['selection_strategy']
+            ?? null;
+
+        $requiredCapacity =
+            max(
+                1,
+                (int) (
+                    $validated['required_capacity']
+                    ?? 1
+                )
+            );
+
+        $requiredFacilities =
+            $validated['required_facilities']
+            ?? [];
+
+        /*
+         * Capacity-Based Strategy
+         *
+         * 根据用户所需人数筛选房间，
+         * 并优先显示容量最接近需求的房间。
+         */
+        if (
+            $selectionStrategy === 'capacity'
+        ) {
+            $context =
+                new RoomSelectionContext(
+                    new CapacityBasedRoomSelectionStrategy()
+                );
+
+            $rooms =
+                $context->selectRooms(
+                    $rooms,
+                    [
+                        'capacity' =>
+                        $requiredCapacity,
+                    ]
+                );
+        }
+
+        /*
+         * Facility-Based Strategy
+         *
+         * 根据用户要求的设施筛选房间。
+         */
+        if (
+            $selectionStrategy === 'facility'
+        ) {
+            $context =
+                new RoomSelectionContext(
+                    new FacilityBasedRoomSelectionStrategy()
+                );
+
+            $rooms =
+                $context->selectRooms(
+                    $rooms,
+                    [
+                        'facilities' =>
+                        $requiredFacilities,
+                    ]
+                );
+        }
 
         /*
          * Librarian 可以替 Student 预约，
@@ -202,35 +353,62 @@ class RoomReservationController extends Controller
          */
         $students = $user->isLibrarian()
             ? User::query()
-                ->where(
-                    'role',
-                    User::ROLE_STUDENT
-                )
-                ->orderBy('name')
-                ->get([
-                    'id',
-                    'name',
-                    'email',
-                ])
+            ->where(
+                'role',
+                User::ROLE_STUDENT
+            )
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'email',
+            ])
             : collect();
 
         return view(
             'room-reservations.create',
             [
-                'rooms' => $rooms,
+                'rooms' =>
+                $availableRoomsFromService
+                    ?: $rooms, 
+
+                'availableRoomsFromService' =>
+                $availableRoomsFromService,
+
                 'students' => $students,
 
+                /*
+                 * Strategy Pattern UI Data
+                 */
+                'selectionStrategy' =>
+                $selectionStrategy,
+
+                'requiredCapacity' =>
+                $requiredCapacity,
+
+                'requiredFacilities' =>
+                $requiredFacilities,
+
+                'availableFacilities' =>
+                Room::ALLOWED_FACILITIES,
+
+                /*
+                 * Existing reservation defaults
+                 */
                 'selectedRoomId' =>
-                    $validated['room_id'] ?? null,
+                $validated['room_id']
+                    ?? null,
 
                 'defaultStart' =>
-                    $chosenStart?->format(
-                        'Y-m-d\TH:i'
-                    ) ?? '',
+                $chosenStart?->format(
+                    'Y-m-d\TH:i'
+                ) ?? '',
 
                 'defaultEnd' =>
-                    $chosenStart?->addHour()
-                        ->format('Y-m-d\TH:i') ?? '',
+                $chosenStart?->addHour()
+                    ->format(
+                        'Y-m-d\TH:i'
+                    ) ?? '',
             ]
         );
     }
@@ -255,7 +433,9 @@ class RoomReservationController extends Controller
         );
 
         return redirect()
-            ->route('room-reservations.index')
+            ->route(
+                'room-reservations.index'
+            )
             ->with(
                 'success',
                 'Room reserved successfully.'
@@ -285,8 +465,13 @@ class RoomReservationController extends Controller
          * 只显示目前可预约的房间。
          */
         $rooms = Room::query()
-            ->where('status', 'available')
-            ->orderBy('room_number')
+            ->where(
+                'status',
+                'available'
+            )
+            ->orderBy(
+                'room_number'
+            )
             ->get();
 
         /*
@@ -295,16 +480,16 @@ class RoomReservationController extends Controller
          */
         $students = $user->isLibrarian()
             ? User::query()
-                ->where(
-                    'role',
-                    User::ROLE_STUDENT
-                )
-                ->orderBy('name')
-                ->get([
-                    'id',
-                    'name',
-                    'email',
-                ])
+            ->where(
+                'role',
+                User::ROLE_STUDENT
+            )
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'email',
+            ])
             : collect();
 
         $reservation->load([
@@ -344,7 +529,9 @@ class RoomReservationController extends Controller
         );
 
         return redirect()
-            ->route('room-reservations.index')
+            ->route(
+                'room-reservations.index'
+            )
             ->with(
                 'success',
                 'Reservation updated successfully.'

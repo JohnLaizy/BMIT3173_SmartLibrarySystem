@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Borrowing;
+use App\Observers\BorrowingObserver;
 use App\Models\Room;
 use App\Observers\RoomObserver;
 use Carbon\CarbonImmutable;
@@ -23,11 +25,13 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
+
     public function boot(): void
     {
-        $this->configureDefaults();
+       $this->configureDefaults();
 
-        Room::observe(RoomObserver::class);
+       Room::observe(RoomObserver::class);
+       Borrowing::observe(BorrowingObserver::class);
     }
 
     /**

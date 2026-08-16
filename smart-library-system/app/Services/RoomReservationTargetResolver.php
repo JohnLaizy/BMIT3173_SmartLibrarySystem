@@ -5,10 +5,10 @@ namespace App\Services;
 use App\Models\RoomReservation;
 use App\Models\User;
 
-interface RoomReservationStrategy
+interface RoomReservationTargetResolver
 {
     /**
-     * 根据当前用户角色决定预约属于哪一个 Student。
+     * Resolve which student the reservation belongs to.
      *
      * @param array{
      *     room_id: int,

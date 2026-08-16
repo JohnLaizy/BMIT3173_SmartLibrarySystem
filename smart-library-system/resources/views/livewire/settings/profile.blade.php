@@ -23,7 +23,7 @@
     --}}
     <x-settings.layout
         :heading="__('Profile')"
-        :subheading="__('Update your name and email address')"
+        :subheading="__('Update your name, email address and phone number')"
     >
         {{--
             用户按下 Save 后，
@@ -98,6 +98,7 @@
                     </div>
                 @endif
             </div>
+   
 
 
             <flux:input

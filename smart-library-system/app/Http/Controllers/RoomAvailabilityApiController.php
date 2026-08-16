@@ -20,10 +20,16 @@ class RoomAvailabilityApiController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
+                'request_id' => [
+                    'required',
+                    'string',
+                ],
+
                 'starts_at' => [
                     'required',
                     'date',
                 ],
+
                 'ends_at' => [
                     'required',
                     'date',
@@ -34,9 +40,21 @@ class RoomAvailabilityApiController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'success' => false,
-                'message' => 'Invalid request.',
-                'errors' => $validator->errors(),
+                'request_id' =>
+                $request->request_id,
+
+                'timestamp' =>
+                now()->toISOString(),
+
+                'status' =>
+                'failed',
+
+                'message' =>
+                'Invalid request.',
+
+                'errors' =>
+                $validator->errors(),
+
             ], 422);
         }
 
@@ -86,8 +104,16 @@ class RoomAvailabilityApiController extends Controller
             ]);
 
         return response()->json([
-            'success' => true,
-            'message' => 'Available rooms retrieved successfully.',
+
+            'request_id' =>
+            $request->request_id,
+
+            'timestamp' =>
+            now()->toISOString(),
+
+            'status' =>
+            'success',
+
             'data' => [
                 'starts_at' => $startsAt,
                 'ends_at' => $endsAt,

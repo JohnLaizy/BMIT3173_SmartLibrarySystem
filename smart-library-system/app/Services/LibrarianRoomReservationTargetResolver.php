@@ -6,21 +6,18 @@ use App\Models\RoomReservation;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
-class LibrarianRoomReservationStrategy implements RoomReservationStrategy
+class LibrarianRoomReservationTargetResolver
+    implements RoomReservationTargetResolver
 {
     public function resolveTargetUser(
         User $actor,
         array $data,
         ?RoomReservation $reservation = null
     ): User {
-        /*
-         * Librarian Strategy:
-         * Librarian 可以替 Student 建立或修改预约，
-         * 但必须指定 Student。
-         */
         if (! $actor->isLibrarian()) {
             throw ValidationException::withMessages([
-                'user' => 'Only librarians can use the librarian reservation strategy.',
+                'user' =>
+                    'Only librarians can manage reservations for students.',
             ]);
         }
 
@@ -29,7 +26,8 @@ class LibrarianRoomReservationStrategy implements RoomReservationStrategy
             || $data['user_id'] === null
         ) {
             throw ValidationException::withMessages([
-                'user_id' => 'Select a student for this reservation.',
+                'user_id' =>
+                    'Select a student for this reservation.',
             ]);
         }
 
@@ -38,13 +36,10 @@ class LibrarianRoomReservationStrategy implements RoomReservationStrategy
             ->lockForUpdate()
             ->firstOrFail();
 
-        /*
-         * Librarian 也不能把 Reservation
-         * 分配给另一个 Librarian。
-         */
         if (! $targetUser->isStudent()) {
             throw ValidationException::withMessages([
-                'user_id' => 'Reservations can only be assigned to students.',
+                'user_id' =>
+                    'Reservations can only be assigned to students.',
             ]);
         }
 
