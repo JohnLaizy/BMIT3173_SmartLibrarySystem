@@ -38,6 +38,17 @@
 
 @layer base {
 
+    /*
+     * 全站以 rem 为基础的 UI（Tailwind、Flux、文字、间距和卡片）
+     * 统一缩放为浏览器默认尺寸的 90%。
+     *
+     * 使用 root font-size 而非 transform: scale()，避免页面模糊、
+     * 横向溢出、固定定位错位，以及实际点击区域与视觉位置不一致。
+     */
+    html {
+        font-size: 90%;
+    }
+
     *,
     ::after,
     ::before,

@@ -109,7 +109,8 @@ class BookController extends Controller
                 $query->where('type', $type);
             }
 
-            $books = $query->latest()->paginate(10)->withQueryString();
+        // 每个 Library Books 页面最多显示五本书，保持列表卡片稳定。
+        $books = $query->latest()->paginate(5)->withQueryString();
 
             // Web Service API 请求支持
             if ($request->wantsJson()) {

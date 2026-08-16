@@ -113,7 +113,8 @@
                     </flux:text>
                 </div>
             @else
-                <div class="overflow-x-auto">
+                {{-- 清单固定保留五个 record row 的高度，footer 固定在卡片底部。 --}}
+                <div class="min-h-[33rem] overflow-x-auto">
                     <table class="w-full min-w-[940px] text-left text-sm">
                         <thead class="border-b border-zinc-800 bg-zinc-900 text-zinc-200">
                             <tr>
@@ -150,7 +151,7 @@
                                     };
                                 @endphp
 
-                                <tr class="transition-colors hover:bg-zinc-900/80">
+                                <tr class="h-24 transition-colors hover:bg-zinc-900/80">
                                     @if (auth()->user()->isLibrarian())
                                         <td class="px-5 py-4">
                                             <div class="font-medium text-white">
@@ -240,11 +241,17 @@
                             @endforeach
                         </tbody>
                     </table>
+
+                    @if ($payments->count() < 5)
+                        <div class="border-t border-zinc-800"></div>
+                    @endif
                 </div>
 
-                <div class="border-t border-zinc-800 bg-zinc-900/50 p-4">
-                    {{ $payments->withQueryString()->links() }}
-                </div>
+                <x-listing-pagination
+                    :paginator="$payments"
+                    aria-label="Payment pagination"
+                    :dark-card="true"
+                />
             @endif
         </section>
     </div>

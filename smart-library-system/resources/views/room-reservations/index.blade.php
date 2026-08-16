@@ -167,7 +167,8 @@
                     </flux:button>
                 </div>
             @else
-                <div class="overflow-x-auto">
+                {{-- 清单固定保留五个 record row 的高度，footer 固定在卡片底部。 --}}
+                <div class="min-h-[33rem] overflow-x-auto">
                     <table class="w-full min-w-[950px] text-sm">
                         <thead
                             class="bg-zinc-100 text-zinc-700
@@ -209,7 +210,7 @@
                         >
                             @foreach ($upcomingReservations as $reservation)
                                 <tr
-                                    class="transition-colors
+                                    class="h-24 transition-colors
                                            hover:bg-zinc-500/5"
                                 >
                                     <td class="px-6 py-5">
@@ -393,16 +394,16 @@
                             @endforeach
                         </tbody>
                     </table>
+
+                    @if ($upcomingReservations->count() < 5)
+                        <div class="border-t border-zinc-200 dark:border-zinc-800"></div>
+                    @endif
                 </div>
 
-                @if ($upcomingReservations->hasPages())
-                    <div
-                        class="border-t border-zinc-200
-                               px-6 py-4 dark:border-zinc-700"
-                    >
-                        {{ $upcomingReservations->links() }}
-                    </div>
-                @endif
+                <x-listing-pagination
+                    :paginator="$upcomingReservations"
+                    aria-label="Upcoming reservation pagination"
+                />
             @endif
         </section>
 
@@ -465,7 +466,8 @@
                     </p>
                 </div>
             @else
-                <div class="overflow-x-auto">
+                {{-- 清单固定保留五个 record row 的高度，footer 固定在卡片底部。 --}}
+                <div class="min-h-[33rem] overflow-x-auto">
                     <table class="w-full min-w-[850px] text-sm">
                         <thead
                             class="bg-zinc-100 text-zinc-700
@@ -508,7 +510,7 @@
                                 @endphp
 
                                 <tr
-                                    class="transition-colors
+                                    class="h-24 transition-colors
                                            hover:bg-zinc-500/5"
                                 >
                                     <td class="px-6 py-5">
@@ -597,16 +599,16 @@
                             @endforeach
                         </tbody>
                     </table>
+
+                    @if ($reservationHistory->count() < 5)
+                        <div class="border-t border-zinc-200 dark:border-zinc-800"></div>
+                    @endif
                 </div>
 
-                @if ($reservationHistory->hasPages())
-                    <div
-                        class="border-t border-zinc-200
-                               px-6 py-4 dark:border-zinc-700"
-                    >
-                        {{ $reservationHistory->links() }}
-                    </div>
-                @endif
+                <x-listing-pagination
+                    :paginator="$reservationHistory"
+                    aria-label="Reservation history pagination"
+                />
             @endif
         </section>
     </div>

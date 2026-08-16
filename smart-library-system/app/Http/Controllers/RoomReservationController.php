@@ -60,10 +60,11 @@ class RoomReservationController extends Controller
                 )
                 ->orderBy('starts_at')
                 ->paginate(
-                    10,
+                    5,
                     ['*'],
                     'upcoming_page'
-                );
+                )
+                ->withQueryString();
 
         /*
          * 取得已经取消或已经结束的预约。
@@ -95,10 +96,11 @@ class RoomReservationController extends Controller
                 )
                 ->latest('starts_at')
                 ->paginate(
-                    10,
+                    5,
                     ['*'],
                     'history_page'
-                );
+                )
+                ->withQueryString();
 
         return view(
             'room-reservations.index',

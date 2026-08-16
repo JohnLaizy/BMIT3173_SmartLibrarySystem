@@ -45,8 +45,10 @@ class BookReservationController extends Controller
             );
         }
 
+        // 每页只显示五条预约，避免 Reservation Management 卡片无限加长。
         $reservations = $reservationsQuery
-            ->paginate(10);
+            ->paginate(5)
+            ->withQueryString();
 
         $books = $user->isStudent()
             ? Book::query()

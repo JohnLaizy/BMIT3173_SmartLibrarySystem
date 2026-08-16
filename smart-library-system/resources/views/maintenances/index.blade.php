@@ -104,11 +104,11 @@
                            text-zinc-600
                            dark:bg-zinc-800 dark:text-zinc-300"
                 >
-                    {{ $currentMaintenances->count() }}
+                    {{ $currentMaintenances->total() }}
 
                     {{ Str::plural(
                         'record',
-                        $currentMaintenances->count()
+                        $currentMaintenances->total()
                     ) }}
                 </span>
             </div>
@@ -164,7 +164,8 @@
                     有记录时才启用横向滚动及最小 Table 宽度，
                     避免手机端的资料栏被压缩。
                 --}}
-                <div class="overflow-x-auto">
+                {{-- 清单固定保留五个 record row 的高度，footer 固定在卡片底部。 --}}
+                <div class="min-h-[33rem] overflow-x-auto">
                     <table
                         class="w-full min-w-[1000px]
                                table-fixed text-sm"
@@ -233,7 +234,7 @@
                                 @endphp
 
                                 <tr
-                                    class="transition-colors duration-150
+                                    class="h-24 transition-colors duration-150
                                            hover:bg-zinc-50
                                            dark:hover:bg-zinc-800/70"
                                 >
@@ -407,7 +408,16 @@
                             @endforeach
                         </tbody>
                     </table>
+
+                    @if ($currentMaintenances->count() < 5)
+                        <div class="border-t border-zinc-200 dark:border-zinc-800"></div>
+                    @endif
                 </div>
+
+                <x-listing-pagination
+                    :paginator="$currentMaintenances"
+                    aria-label="Current maintenance pagination"
+                />
             @endif
 
         </section>
@@ -435,7 +445,7 @@
                 <form
                     method="GET"
                     action="{{ route('maintenances.index') }}"
-                    data-auto-filter-form
+                    data-maintenance-filter-form
                     class="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto"
                 >
                     <label for="maintenance-search" class="sr-only">
@@ -446,7 +456,7 @@
                         id="maintenance-search"
                         name="search"
                         type="search"
-                        data-auto-filter-input
+                        data-maintenance-filter-input
                         value="{{ $search }}"
                         placeholder="Room, title or description"
                         class="min-h-11 w-full rounded-xl border border-zinc-300 bg-white
@@ -459,7 +469,7 @@
                     <div class="relative w-full sm:w-44">
                         <select
                             name="status"
-                            data-auto-filter-select
+                            data-maintenance-filter-select
                             class="min-h-11 w-full appearance-none rounded-xl border border-zinc-300 bg-white px-3 pe-11
                                    text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
                         >
@@ -482,19 +492,20 @@
                         </svg>
                     </div>
 
-                    @if ($search !== '' || $status !== null)
-                        <flux:button
-                            :href="route('maintenances.index')"
-                            variant="ghost"
-                            class="min-h-11"
-                            wire:navigate
-                        >
-                            Clear
-                        </flux:button>
-                    @endif
+                    <button
+                        type="button"
+                        data-maintenance-filter-clear
+                        @class([
+                            'hidden' => $search === '' && $status === null,
+                            'inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
+                        ])
+                    >
+                        Clear
+                    </button>
                 </form>
             </div>
 
+            <div data-live-maintenance-results>
             @if ($historyMaintenances->isEmpty())
                 <div class="px-6 py-14 text-center">
                     <h3 class="font-semibold text-zinc-900 dark:text-white">
@@ -510,7 +521,8 @@
                     </p>
                 </div>
             @else
-                <div class="overflow-x-auto">
+                {{-- 清单固定保留五个 record row 的高度，footer 固定在卡片底部。 --}}
+                <div class="min-h-[33rem] overflow-x-auto">
                     <table class="w-full min-w-[860px] table-fixed text-sm">
                         <thead
                             class="bg-zinc-100 text-left text-zinc-700
@@ -546,7 +558,7 @@
                                 @endphp
 
                                 <tr
-                                    class="transition-colors duration-150 hover:bg-zinc-50
+                                    class="h-24 transition-colors duration-150 hover:bg-zinc-50
                                            dark:hover:bg-zinc-800/70"
                                 >
                                     <td class="px-6 py-5">
@@ -585,43 +597,120 @@
                             @endforeach
                         </tbody>
                     </table>
+
+                    @if ($historyMaintenances->count() < 5)
+                        <div class="border-t border-zinc-200 dark:border-zinc-700"></div>
+                    @endif
                 </div>
 
-                @if ($historyMaintenances->hasPages())
-                    <div class="border-t border-zinc-200 px-5 py-4 dark:border-zinc-700">
-                        {{ $historyMaintenances->links() }}
-                    </div>
-                @endif
+                <x-listing-pagination
+                    :paginator="$historyMaintenances"
+                    aria-label="Maintenance history pagination"
+                />
             @endif
+            </div>
         </section>
     </div>
 
     <script data-navigate-once>
         (() => {
-            if (window.smartLibraryAutoFilterInitialised) {
+            if (window.smartLibraryMaintenanceFilterInitialised) {
                 return;
             }
 
-            window.smartLibraryAutoFilterInitialised = true;
+            window.smartLibraryMaintenanceFilterInitialised = true;
 
             let inputTimer;
+            let activeRequest;
+
+            const updateClearButton = (form) => {
+                const clearButton = form.querySelector('[data-maintenance-filter-clear]');
+                const search = form.querySelector('[name="search"]')?.value.trim() ?? '';
+                const status = form.querySelector('[name="status"]')?.value ?? '';
+
+                if (clearButton instanceof HTMLElement) {
+                    clearButton.classList.toggle('hidden', search === '' && status === '');
+                }
+            };
+
+            const updateMaintenanceResults = async (form) => {
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                const url = new URL(form.action, window.location.origin);
+                const formData = new FormData(form);
+
+                for (const [key, value] of formData.entries()) {
+                    if (String(value) !== '') {
+                        url.searchParams.append(key, String(value));
+                    }
+                }
+
+                const currentResults = document.querySelector('[data-live-maintenance-results]');
+
+                if (!(currentResults instanceof HTMLElement)) {
+                    window.location.assign(url);
+                    return;
+                }
+
+                if (activeRequest) {
+                    activeRequest.abort();
+                }
+
+                activeRequest = new AbortController();
+                currentResults.setAttribute('aria-busy', 'true');
+
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        signal: activeRequest.signal,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Unable to update maintenance history.');
+                    }
+
+                    const documentResponse = new DOMParser().parseFromString(
+                        await response.text(),
+                        'text/html'
+                    );
+                    const nextResults = documentResponse.querySelector('[data-live-maintenance-results]');
+
+                    if (!(nextResults instanceof HTMLElement)) {
+                        throw new Error('Maintenance results were not found in the response.');
+                    }
+
+                    currentResults.replaceWith(nextResults);
+                    window.history.replaceState({}, '', url);
+                    updateClearButton(form);
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        window.location.assign(url);
+                    }
+                } finally {
+                    currentResults.removeAttribute('aria-busy');
+                }
+            };
 
             const submitFilterForm = (form, delay = 0) => {
                 window.clearTimeout(inputTimer);
 
                 inputTimer = window.setTimeout(() => {
-                    form.requestSubmit();
+                    updateMaintenanceResults(form);
                 }, delay);
             };
 
             document.addEventListener('input', (event) => {
                 const input = event.target;
 
-                if (!(input instanceof HTMLInputElement) || !input.matches('[data-auto-filter-input]')) {
+                if (!(input instanceof HTMLInputElement) || !input.matches('[data-maintenance-filter-input]')) {
                     return;
                 }
 
-                const form = input.closest('form[data-auto-filter-form]');
+                const form = input.closest('form[data-maintenance-filter-form]');
 
                 if (form instanceof HTMLFormElement) {
                     submitFilterForm(form, 350);
@@ -631,15 +720,46 @@
             document.addEventListener('change', (event) => {
                 const select = event.target;
 
-                if (!(select instanceof HTMLSelectElement) || !select.matches('[data-auto-filter-select]')) {
+                if (!(select instanceof HTMLSelectElement) || !select.matches('[data-maintenance-filter-select]')) {
                     return;
                 }
 
-                const form = select.closest('form[data-auto-filter-form]');
+                const form = select.closest('form[data-maintenance-filter-form]');
 
                 if (form instanceof HTMLFormElement) {
                     submitFilterForm(form);
                 }
+            });
+
+            document.addEventListener('submit', (event) => {
+                const form = event.target;
+
+                if (!(form instanceof HTMLFormElement) || !form.matches('[data-maintenance-filter-form]')) {
+                    return;
+                }
+
+                event.preventDefault();
+                window.clearTimeout(inputTimer);
+                updateMaintenanceResults(form);
+            });
+
+            document.addEventListener('click', (event) => {
+                const clearButton = event.target.closest('[data-maintenance-filter-clear]');
+
+                if (!(clearButton instanceof HTMLElement)) {
+                    return;
+                }
+
+                const form = clearButton.closest('form[data-maintenance-filter-form]');
+
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                form.querySelector('[name="search"]').value = '';
+                form.querySelector('[name="status"]').value = '';
+                updateMaintenanceResults(form);
+                form.querySelector('[name="search"]').focus();
             });
         })();
     </script>

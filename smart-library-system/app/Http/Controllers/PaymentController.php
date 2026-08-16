@@ -38,7 +38,8 @@ class PaymentController extends Controller
         }
 
         return view('payments.index', [
-            'payments' => $paymentsQuery->paginate(12),
+            // Payment History 也遵守每页五笔记录的列表规则。
+            'payments' => $paymentsQuery->paginate(5),
         ]);
     }
 

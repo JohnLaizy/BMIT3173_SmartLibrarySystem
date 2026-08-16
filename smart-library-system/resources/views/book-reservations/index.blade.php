@@ -153,7 +153,8 @@
                 </div>
 
             <div class="overflow-hidden">
-                <div class="overflow-x-auto">
+                {{-- 清单固定保留五个 record row 的高度，footer 固定在卡片底部。 --}}
+                <div class="min-h-[33rem] overflow-x-auto">
                     <table class="w-full border-collapse text-left text-sm">
                         <thead class="border-b-2 border-zinc-700 bg-zinc-900 text-zinc-200">
                             <tr>
@@ -201,7 +202,7 @@
                                     };
                                 @endphp
 
-                                <tr class="transition-colors hover:bg-zinc-900/80">
+                                <tr class="h-24 transition-colors hover:bg-zinc-900/80">
                                     @if (auth()->user()->isLibrarian())
                                         <td class="px-4 py-3">
                                             <div class="font-medium">
@@ -386,12 +387,18 @@
                             @endforelse
                         </tbody>
                     </table>
+
+                    @if ($reservations->count() < 5)
+                        <div class="border-t-2 border-zinc-800"></div>
+                    @endif
                 </div>
             </div>
 
-            <div class="mt-4">
-                {{ $reservations->withQueryString()->links() }}
-            </div>
+            <x-listing-pagination
+                :paginator="$reservations"
+                aria-label="Book reservation pagination"
+                :dark-card="true"
+            />
         </section>
     </div>
 </x-layouts::app>

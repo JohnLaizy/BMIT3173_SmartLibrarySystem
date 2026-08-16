@@ -94,7 +94,7 @@ class RoomController extends Controller
                 }
             )
             ->orderBy('room_number', 'asc')
-            ->paginate(10)
+            ->paginate(5)
             ->withQueryString();
 
         return view('rooms.index', [
@@ -107,25 +107,15 @@ class RoomController extends Controller
                 ->distinct()
                 ->orderBy('location')
                 ->pluck('location'),
+            /*
+             * 人数选项只依赖 Room Type + Floor。
+             * Facility 是额外的筛选条件，不应阻止用户先选择人数。
+             */
             'capacityOptions' => filled($filters['location'] ?? null)
-                && filled($filters['facilities'] ?? null)
+                && filled($filters['type'] ?? null)
                 ? Room::query()
                     ->where('location', $filters['location'])
-                    ->when(
-                        filled($filters['type'] ?? null),
-                        fn ($query) => $query->where('type', $filters['type'])
-                    )
-                    ->when(
-                        filled($filters['facilities'] ?? null),
-                        function ($query) use ($filters): void {
-                            foreach ($filters['facilities'] as $facility) {
-                                $query->whereJsonContains(
-                                    'facilities',
-                                    $facility
-                                );
-                            }
-                        }
-                    )
+                    ->where('type', $filters['type'])
                     ->orderBy('capacity')
                     ->pluck('capacity')
                     ->unique()
@@ -295,16 +285,22 @@ public function destroy(
     {
         $parameters = [
             'page' => max(1, (int) $request->input('page', 1)),
-            'search' => trim((string) $request->input('search', '')),
-            'type' => trim((string) $request->input('type', '')),
+            /*
+             * 编辑表单也使用 name=type/capacity/location 等字段。
+             * 返回列表时只读取 URL query 的筛选值，避免把刚保存的
+             * Room 资料误当作 Room Management 的筛选条件。
+             */
+            'search' => trim((string) $request->query('search', '')),
+            'type' => trim((string) $request->query('type', '')),
             'capacity' => $request->filled('capacity')
-                ? (int) $request->input('capacity')
+                && $request->query('capacity') !== null
+                ? (int) $request->query('capacity')
                 : '',
-            'location' => trim((string) $request->input('location', '')),
-            'facilities' => is_array($request->input('facilities'))
+            'location' => trim((string) $request->query('location', '')),
+            'facilities' => is_array($request->query('facilities'))
                 ? array_values(
                     array_filter(
-                        $request->input('facilities'),
+                        $request->query('facilities'),
                         fn ($facility): bool => is_string($facility)
                             && $facility !== ''
                     )

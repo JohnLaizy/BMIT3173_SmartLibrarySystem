@@ -16,3 +16,12 @@ cd .\smart-library-system
 php artisan migrate:rollback --step=1
 php artisan migrate
 php artisan migrate:status
+
+# Gitpush
+cd C:\Users\ongzh\Documents\GitHub\BMIT3173_SmartLibrarySystem
+
+git add -A
+
+git commit -m "Describe your changes here"
+
+git push origin main

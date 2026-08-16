@@ -250,23 +250,23 @@
                                 >
                             </div>
 
-                            @if ($borrowingSearch !== '')
-                                <flux:button
-                                :href="route('borrowings.index')"
-                                    variant="ghost"
-                                    size="sm"
-                                    wire:navigate
-                                >
-                                    Clear
-                                </flux:button>
-                            @endif
+                            <button
+                                type="button"
+                                data-borrowing-search-clear
+                                @class([
+                                    'hidden' => $borrowingSearch === '',
+                                    'inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 hover:text-white',
+                                ])
+                            >
+                                Clear
+                            </button>
                         </form>
                     @endif
                 </div>
             </div>
 
             {{-- 第二层卡片使借阅记录在 Borrow & Return 页面保持清晰分组。 --}}
-            <div class="p-5">
+            <div class="p-5" data-live-borrowing-results>
                 <div
                     class="overflow-hidden rounded-xl border border-zinc-800
                            bg-zinc-950 text-zinc-100"
@@ -276,7 +276,8 @@
                             No borrowing records found.
                         </div>
                     @else
-                        <div class="overflow-x-auto">
+                        {{-- 清单固定保留五个 record row 的高度，footer 固定在卡片底部。 --}}
+                        <div class="min-h-[33rem] overflow-x-auto">
                             <table class="min-w-[980px] w-full table-fixed text-left text-sm">
                         {{-- 记录表同样使用稳定栏宽，和上方 Book Copies table 的视觉节奏一致。 --}}
                         @if (auth()->user()->isLibrarian())
@@ -362,7 +363,7 @@
                                     };
                                 @endphp
 
-                                <tr class="transition-colors hover:bg-zinc-900/80">
+                                <tr class="h-24 transition-colors hover:bg-zinc-900/80">
                                     @if (auth()->user()->isLibrarian())
                                         <td class="px-4 py-4">
                                             {{ $borrowing->student->name }}
@@ -519,11 +520,17 @@
                             @endforeach
                         </tbody>
                             </table>
+
+                            @if ($borrowings->count() < 5)
+                                <div class="border-t border-zinc-800"></div>
+                            @endif
                         </div>
 
-                        <div class="border-t border-zinc-800 p-4">
-                            {{ $borrowings->links() }}
-                        </div>
+                        <x-listing-pagination
+                            :paginator="$borrowings"
+                            aria-label="Borrowing pagination"
+                            :dark-card="true"
+                        />
                     @endif
                 </div>
             </div>
@@ -685,17 +692,92 @@
                 form.dataset.initialized = 'true';
 
                 let submitTimer;
+                let activeRequest;
+
+                const searchUrlFor = () => {
+                    const url = new URL(form.action, window.location.origin);
+                    const search = input.value.trim();
+
+                    if (search !== '') {
+                        url.searchParams.set('borrowing_search', search);
+                    }
+
+                    return url;
+                };
+
+                const updateClearButton = () => {
+                    const clearButton = form.querySelector('[data-borrowing-search-clear]');
+
+                    if (clearButton instanceof HTMLElement) {
+                        clearButton.classList.toggle('hidden', input.value.trim() === '');
+                    }
+                };
+
+                const updateBorrowingResults = async () => {
+                    const url = searchUrlFor();
+                    const currentResults = document.querySelector('[data-live-borrowing-results]');
+
+                    if (!(currentResults instanceof HTMLElement)) {
+                        window.location.assign(url);
+                        return;
+                    }
+
+                    if (activeRequest) {
+                        activeRequest.abort();
+                    }
+
+                    activeRequest = new AbortController();
+                    currentResults.setAttribute('aria-busy', 'true');
+
+                    try {
+                        const response = await fetch(url, {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            signal: activeRequest.signal,
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Unable to update borrowing records.');
+                        }
+
+                        const documentResponse = new DOMParser().parseFromString(
+                            await response.text(),
+                            'text/html'
+                        );
+                        const nextResults = documentResponse.querySelector('[data-live-borrowing-results]');
+
+                        if (!(nextResults instanceof HTMLElement)) {
+                            throw new Error('Borrowing results were not found in the response.');
+                        }
+
+                        currentResults.replaceWith(nextResults);
+                        window.history.replaceState({}, '', url);
+                        updateClearButton();
+                    } catch (error) {
+                        if (error.name !== 'AbortError') {
+                            window.location.assign(url);
+                        }
+                    } finally {
+                        currentResults.removeAttribute('aria-busy');
+                    }
+                };
 
                 input.addEventListener('input', () => {
                     window.clearTimeout(submitTimer);
-
-                    submitTimer = window.setTimeout(() => {
-                        form.requestSubmit();
-                    }, 350);
+                    submitTimer = window.setTimeout(updateBorrowingResults, 300);
                 });
 
-                form.addEventListener('submit', () => {
+                form.addEventListener('submit', (event) => {
+                    event.preventDefault();
                     window.clearTimeout(submitTimer);
+                    updateBorrowingResults();
+                });
+
+                form.querySelector('[data-borrowing-search-clear]')?.addEventListener('click', () => {
+                    input.value = '';
+                    updateBorrowingResults();
+                    input.focus();
                 });
             };
 

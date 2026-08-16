@@ -136,9 +136,13 @@
             </flux:button>
         </header>
 
+        <div
+            data-live-availability-content
+            class="flex flex-col gap-6"
+        >
         {{-- 日期选择工具栏 --}}
         <section
-            class="flex flex-col gap-5 rounded-2xl
+            class="order-2 flex flex-col gap-5 rounded-2xl
                    border border-zinc-200 bg-white p-5 shadow-sm
                    dark:border-zinc-700 dark:bg-zinc-900
                    lg:flex-row lg:items-center
@@ -190,6 +194,7 @@
             <form
                 method="GET"
                 action="{{ route('room-availability.index') }}"
+                data-live-availability-date-form
                 class="flex w-full flex-col gap-3
                        sm:flex-row sm:flex-wrap sm:items-end
                        lg:w-auto lg:justify-end"
@@ -266,7 +271,8 @@
 
         {{-- 房间筛选：所有筛选会立即更新统计卡及下方时间表。 --}}
         <section
-            class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm
+            data-room-filters-card
+            class="order-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm
                    dark:border-zinc-700 dark:bg-zinc-900"
         >
             <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -287,6 +293,7 @@
                     size="sm"
                     variant="ghost"
                     icon="arrow-path"
+                    data-availability-reset
                     class="min-h-10 w-full sm:w-auto"
                     wire:navigate
                 >
@@ -496,7 +503,7 @@
         @if (session('success'))
             <div
                 role="status"
-                class="flex items-center gap-3 rounded-xl
+                class="order-4 flex items-center gap-3 rounded-xl
                        border border-emerald-500/30
                        bg-emerald-500/10 px-4 py-3
                        text-sm font-medium text-emerald-700
@@ -519,7 +526,7 @@
         @if ($errors->any())
             <div
                 role="alert"
-                class="rounded-xl border border-red-500/30
+                class="order-4 rounded-xl border border-red-500/30
                        bg-red-500/10 px-4 py-3"
             >
                 <p
@@ -543,7 +550,7 @@
 
         {{-- 动态时段统计 --}}
         <section
-            class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+            class="order-1 grid gap-6 sm:grid-cols-2 xl:grid-cols-4"
             aria-label="Room availability summary"
         >
             @foreach ($summaryCards as $status => $card)
@@ -643,7 +650,7 @@
 
         {{-- Room × Time 时间表 --}}
         <section
-            class="overflow-hidden rounded-2xl
+            class="order-5 overflow-hidden rounded-2xl
                    border border-zinc-200 bg-white shadow-sm
                    dark:border-zinc-700 dark:bg-zinc-900"
         >
@@ -1102,6 +1109,13 @@
                     @endcan
                 </div>
             </div>
+
+            {{--
+                筛选器会由页面底部的 JavaScript 移到这里：
+                开放时间 / Exam Period 信息之后、时间表图例之前。
+                这样用户完成筛选后，结果会紧贴在时间格的上方。
+            --}}
+            <div data-room-filters-anchor></div>
 
             @if ($rooms->isEmpty())
                 {{--
@@ -1575,24 +1589,136 @@
             </div>
             @endif
         </section>
+        </div>
     </div>
 
     <script data-navigate-once>
         (() => {
-            if (window.smartLibraryAutoFilterInitialised) {
+            if (window.smartLibraryAvailabilityFilterInitialised) {
                 return;
             }
 
-            window.smartLibraryAutoFilterInitialised = true;
+            window.smartLibraryAvailabilityFilterInitialised = true;
 
             let inputTimer;
+            let activeRequest;
 
-            const submitFilterForm = (form, delay = 0) => {
+            const urlFromForm = (form) => {
+                const url = new URL(form.action, window.location.origin);
+                const formData = new FormData(form);
+
+                for (const [key, value] of formData.entries()) {
+                    if (String(value) !== '') {
+                        url.searchParams.append(key, String(value));
+                    }
+                }
+
+                return url;
+            };
+
+            const restoreFocus = (content, focusId, selectionStart, selectionEnd) => {
+                if (focusId === '') {
+                    return;
+                }
+
+                const control = content.querySelector(`#${CSS.escape(focusId)}`);
+
+                if (!(control instanceof HTMLInputElement || control instanceof HTMLSelectElement)) {
+                    return;
+                }
+
+                control.focus({ preventScroll: true });
+
+                if (
+                    control instanceof HTMLInputElement
+                    && typeof selectionStart === 'number'
+                    && typeof selectionEnd === 'number'
+                ) {
+                    control.setSelectionRange(selectionStart, selectionEnd);
+                }
+            };
+
+            /*
+             * 把筛选器放到时间表信息之后。Filter 仍然保留同一份
+             * HTML 和同一组 data-* 属性，因此既有的即时筛选、
+             * 焦点恢复和无刷新更新逻辑不需要改动。
+             */
+            const placeRoomFiltersNearSchedule = (content = document) => {
+                const filterCard = content.querySelector('[data-room-filters-card]');
+                const anchor = content.querySelector('[data-room-filters-anchor]');
+
+                if (
+                    !(filterCard instanceof HTMLElement)
+                    || !(anchor instanceof HTMLElement)
+                ) {
+                    return;
+                }
+
+                anchor.replaceWith(filterCard);
+            };
+
+            const updateAvailability = async (form) => {
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                const url = urlFromForm(form);
+                const currentContent = document.querySelector('[data-live-availability-content]');
+                const activeElement = document.activeElement;
+                const focusId = activeElement instanceof HTMLElement ? activeElement.id : '';
+                const selectionStart = activeElement instanceof HTMLInputElement ? activeElement.selectionStart : null;
+                const selectionEnd = activeElement instanceof HTMLInputElement ? activeElement.selectionEnd : null;
+
+                if (!(currentContent instanceof HTMLElement)) {
+                    window.location.assign(url);
+                    return;
+                }
+
+                if (activeRequest) {
+                    activeRequest.abort();
+                }
+
+                activeRequest = new AbortController();
+                currentContent.setAttribute('aria-busy', 'true');
+
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        signal: activeRequest.signal,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Unable to update room availability.');
+                    }
+
+                    const documentResponse = new DOMParser().parseFromString(
+                        await response.text(),
+                        'text/html'
+                    );
+                    const nextContent = documentResponse.querySelector('[data-live-availability-content]');
+
+                    if (!(nextContent instanceof HTMLElement)) {
+                        throw new Error('Room availability content was not found in the response.');
+                    }
+
+                    placeRoomFiltersNearSchedule(nextContent);
+                    currentContent.replaceWith(nextContent);
+                    window.history.replaceState({}, '', url);
+                    restoreFocus(nextContent, focusId, selectionStart, selectionEnd);
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        window.location.assign(url);
+                    }
+                } finally {
+                    currentContent.removeAttribute('aria-busy');
+                }
+            };
+
+            const queueAvailabilityUpdate = (form, delay = 0) => {
                 window.clearTimeout(inputTimer);
-
-                inputTimer = window.setTimeout(() => {
-                    form.requestSubmit();
-                }, delay);
+                inputTimer = window.setTimeout(() => updateAvailability(form), delay);
             };
 
             document.addEventListener('input', (event) => {
@@ -1605,7 +1731,7 @@
                 const form = input.closest('form[data-auto-filter-form]');
 
                 if (form instanceof HTMLFormElement) {
-                    submitFilterForm(form, 350);
+                    queueAvailabilityUpdate(form, 300);
                 }
             });
 
@@ -1617,78 +1743,90 @@
                         control instanceof HTMLSelectElement
                         || control instanceof HTMLInputElement
                     )
-                    || !control.matches(
-                        '[data-auto-filter-select], [data-auto-filter-change]'
-                    )
+                    || !control.matches('[data-auto-filter-select], [data-auto-filter-change]')
                 ) {
                     return;
                 }
 
-                const form = control.closest(
-                    'form[data-auto-filter-form]'
-                );
+                const form = control.closest('form[data-auto-filter-form]');
 
                 if (!(form instanceof HTMLFormElement)) {
                     return;
                 }
 
-                /*
-                 * 根据 Controller 传来的真实 type -> location mapping
-                 * 自动带出 Floor。只有一个对应地点时才会改值，
-                 * 因此不会覆盖有多个楼层可选的 type。
-                 */
-                if (
-                    control instanceof HTMLSelectElement
-                    && control.id === 'availability-type'
-                ) {
-                    const locationsByType = JSON.parse(
-                        form.dataset.typeLocations || '{}'
-                    );
+                if (control instanceof HTMLSelectElement && control.id === 'availability-type') {
+                    const locationsByType = JSON.parse(form.dataset.typeLocations || '{}');
+                    const matchingLocations = locationsByType[control.value] || [];
+                    const locationSelect = form.querySelector('#availability-location');
 
-                    const matchingLocations =
-                        locationsByType[control.value] || [];
-
-                    const locationSelect = form.querySelector(
-                        '#availability-location'
-                    );
-
-                    if (
-                        locationSelect instanceof HTMLSelectElement
-                        && matchingLocations.length === 1
-                    ) {
+                    if (locationSelect instanceof HTMLSelectElement && matchingLocations.length === 1) {
                         locationSelect.value = matchingLocations[0];
                     }
                 }
 
-                /*
-                 * 若某个楼层在数据库中只出现一种房型，自动带出该房型。
-                 * 例如 First Floor 目前只有 Study room 时，选楼层后会显示
-                 * Study；日后一个楼层有多种房型时不覆盖使用者选择。
-                 */
-                if (
-                    control instanceof HTMLSelectElement
-                    && control.id === 'availability-location'
-                ) {
-                    const typesByLocation = JSON.parse(
-                        form.dataset.locationTypes || '{}'
-                    );
+                if (control instanceof HTMLSelectElement && control.id === 'availability-location') {
+                    const typesByLocation = JSON.parse(form.dataset.locationTypes || '{}');
+                    const matchingTypes = typesByLocation[control.value] || [];
+                    const typeSelect = form.querySelector('#availability-type');
 
-                    const matchingTypes =
-                        typesByLocation[control.value] || [];
-
-                    const typeSelect = form.querySelector(
-                        '#availability-type'
-                    );
-
-                    if (
-                        typeSelect instanceof HTMLSelectElement
-                        && matchingTypes.length === 1
-                    ) {
+                    if (typeSelect instanceof HTMLSelectElement && matchingTypes.length === 1) {
                         typeSelect.value = matchingTypes[0];
                     }
                 }
 
-                submitFilterForm(form);
+                queueAvailabilityUpdate(form);
+            });
+
+            document.addEventListener('submit', (event) => {
+                const form = event.target;
+
+                if (
+                    !(form instanceof HTMLFormElement)
+                    || !form.matches('[data-auto-filter-form], [data-live-availability-date-form]')
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+                window.clearTimeout(inputTimer);
+                updateAvailability(form);
+            });
+
+            document.addEventListener('click', (event) => {
+                const resetButton = event.target.closest('[data-availability-reset]');
+
+                if (!(resetButton instanceof HTMLElement)) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                const filterForm = document.querySelector('form[data-auto-filter-form]');
+
+                if (!(filterForm instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                filterForm.querySelectorAll('input[type="search"], select').forEach((control) => {
+                    control.value = '';
+                });
+
+                filterForm.querySelectorAll('input[type="checkbox"]').forEach((control) => {
+                    control.checked = false;
+                });
+
+                updateAvailability(filterForm);
+            });
+
+            placeRoomFiltersNearSchedule();
+
+            /*
+             * Livewire 的 wire:navigate 会替换页面内容而不重新执行
+             * data-navigate-once script。监听这个事件后，用户从侧边栏
+             * 返回 Room Availability 时，筛选器仍会保持在时间表旁边。
+             */
+            document.addEventListener('livewire:navigated', () => {
+                placeRoomFiltersNearSchedule();
             });
         })();
     </script>

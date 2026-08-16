@@ -58,6 +58,7 @@ class RoomMaintenanceController extends Controller
          * Dashboard 部分：只显示尚未结束的维修。
          * 这让管理员打开页面后优先看到真正需要处理的记录。
          */
+        // Current Schedule 与 History 一样每页固定五笔，避免卡片因记录增多而变长。
         $currentMaintenances = RoomMaintenance::query()
             ->with(['room', 'creator'])
             ->whereIn('status', [
@@ -65,7 +66,8 @@ class RoomMaintenanceController extends Controller
                 RoomMaintenance::STATUS_IN_PROGRESS,
             ])
             ->orderBy('starts_at')
-            ->get();
+            ->paginate(5, ['*'], 'current_page')
+            ->withQueryString();
 
         /*
          * History 部分：只显示 completed / cancelled。
@@ -93,7 +95,7 @@ class RoomMaintenanceController extends Controller
                 });
             })
             ->latest('ends_at')
-            ->paginate(10)
+            ->paginate(5)
             ->withQueryString();
 
         return view(

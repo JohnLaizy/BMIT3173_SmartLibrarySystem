@@ -171,17 +171,16 @@
                     ></div>
                 </div>
 
-                @if(request('search'))
-
-                    <flux:button
-                        :href="route('books.index')"
-                        variant="ghost"
-                        wire:navigate
-                    >
-                        Clear
-                    </flux:button>
-
-                @endif
+                <button
+                    type="button"
+                    data-book-search-clear
+                    @class([
+                        'hidden' => ! request('search'),
+                        'inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
+                    ])
+                >
+                    Clear
+                </button>
 
             </form>
 
@@ -189,7 +188,7 @@
                 id="book-search-hint"
                 class="mt-3 text-xs text-zinc-500 dark:text-zinc-400"
             >
-                Suggestions update while you type. Press Enter to show the complete result list.
+                Results and suggestions update while you type.
             </p>
 
         </div>
@@ -199,6 +198,7 @@
 
     {{-- Book List --}}
     <section
+        data-live-book-results
         class="overflow-hidden rounded-2xl
                border border-zinc-200 bg-white shadow-sm
                dark:border-zinc-700 dark:bg-zinc-900"
@@ -292,8 +292,11 @@
 
         @else
 
-            {{-- Book Table --}}
-            <div class="overflow-x-auto">
+            {{--
+                清单永远保留五个 record row 的视觉高度。
+                少于五笔时，最后一笔下方的横线会在 footer 之前收尾。
+            --}}
+            <div class="min-h-[33rem] overflow-x-auto">
 
                 <table
                     @class([
@@ -375,7 +378,7 @@
                         @foreach ($books as $book)
 
                             <tr
-                                class="transition-colors
+                                class="h-24 transition-colors
                                        hover:bg-zinc-500/5"
                             >
 
@@ -591,20 +594,17 @@
 
                 </table>
 
+                @if ($books->count() < 5)
+                    <div class="border-t border-zinc-200 dark:border-zinc-800"></div>
+                @endif
+
             </div>
 
 
-            {{-- Pagination --}}
-            @if ($books->hasPages())
-
-                <div
-                    class="border-t border-zinc-200
-                           px-6 py-4 dark:border-zinc-700"
-                >
-                    {{ $books->withQueryString()->links() }}
-                </div>
-
-            @endif
+            <x-listing-pagination
+                :paginator="$books"
+                aria-label="Book pagination"
+            />
 
         @endif
 
@@ -621,7 +621,8 @@
         window.smartLibraryBookSearchInitialised = true;
 
         let searchTimer;
-        let activeRequest;
+        let suggestionRequest;
+        let resultRequest;
 
         const closeSuggestions = (input, suggestions) => {
             suggestions.replaceChildren();
@@ -660,10 +661,88 @@
             option.addEventListener('click', () => {
                 input.value = title;
                 closeSuggestions(input, suggestions);
+                requestCatalogueResults(input.closest('form[data-book-search-form]'));
                 input.focus();
             });
 
             suggestions.append(option);
+        };
+
+        const searchUrlFor = (form) => {
+            const url = new URL(form.action, window.location.origin);
+            const search = form.querySelector('[data-book-search-input]')?.value.trim() ?? '';
+
+            if (search !== '') {
+                url.searchParams.set('search', search);
+            }
+
+            return url;
+        };
+
+        const setClearButtonVisibility = (form) => {
+            const clearButton = form.querySelector('[data-book-search-clear]');
+            const hasSearch = (form.querySelector('[data-book-search-input]')?.value.trim() ?? '') !== '';
+
+            if (clearButton instanceof HTMLElement) {
+                clearButton.classList.toggle('hidden', !hasSearch);
+            }
+        };
+
+        const requestCatalogueResults = async (form) => {
+            if (!(form instanceof HTMLFormElement)) {
+                return;
+            }
+
+            const url = searchUrlFor(form);
+            const currentResults = document.querySelector('[data-live-book-results]');
+
+            if (!(currentResults instanceof HTMLElement)) {
+                window.location.assign(url);
+                return;
+            }
+
+            if (resultRequest) {
+                resultRequest.abort();
+            }
+
+            resultRequest = new AbortController();
+            currentResults.setAttribute('aria-busy', 'true');
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    signal: resultRequest.signal,
+                });
+
+                if (!response.ok) {
+                    throw new Error('Unable to update catalogue results.');
+                }
+
+                const documentResponse = new DOMParser().parseFromString(
+                    await response.text(),
+                    'text/html'
+                );
+
+                const nextResults = documentResponse.querySelector(
+                    '[data-live-book-results]'
+                );
+
+                if (!(nextResults instanceof HTMLElement)) {
+                    throw new Error('Catalogue results were not found in the response.');
+                }
+
+                currentResults.replaceWith(nextResults);
+                window.history.replaceState({}, '', url);
+                setClearButtonVisibility(form);
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    window.location.assign(url);
+                }
+            } finally {
+                currentResults.removeAttribute('aria-busy');
+            }
         };
 
         document.addEventListener('input', (event) => {
@@ -683,18 +762,22 @@
 
             window.clearTimeout(searchTimer);
 
-            if (activeRequest) {
-                activeRequest.abort();
+            if (suggestionRequest) {
+                suggestionRequest.abort();
             }
 
             if (search === '') {
                 closeSuggestions(input, suggestions);
-
-                return;
             }
 
             searchTimer = window.setTimeout(async () => {
-                activeRequest = new AbortController();
+                requestCatalogueResults(form);
+
+                if (search === '') {
+                    return;
+                }
+
+                suggestionRequest = new AbortController();
 
                 const url = new URL(form.action, window.location.origin);
                 url.searchParams.set('search', search);
@@ -704,7 +787,7 @@
                         headers: {
                             Accept: 'application/json',
                         },
-                        signal: activeRequest.signal,
+                        signal: suggestionRequest.signal,
                     });
 
                     if (!response.ok) {
@@ -742,6 +825,43 @@
                     }
                 }
             }, 220);
+        });
+
+        document.addEventListener('submit', (event) => {
+            const form = event.target;
+
+            if (!(form instanceof HTMLFormElement) || !form.matches('[data-book-search-form]')) {
+                return;
+            }
+
+            event.preventDefault();
+            window.clearTimeout(searchTimer);
+            requestCatalogueResults(form);
+        });
+
+        document.addEventListener('click', (event) => {
+            const clearButton = event.target.closest('[data-book-search-clear]');
+
+            if (!(clearButton instanceof HTMLElement)) {
+                return;
+            }
+
+            const form = clearButton.closest('form[data-book-search-form]');
+            const input = form?.querySelector('[data-book-search-input]');
+            const suggestions = form?.querySelector('[data-book-search-suggestions]');
+
+            if (!(form instanceof HTMLFormElement) || !(input instanceof HTMLInputElement)) {
+                return;
+            }
+
+            input.value = '';
+
+            if (suggestions instanceof HTMLElement) {
+                closeSuggestions(input, suggestions);
+            }
+
+            requestCatalogueResults(form);
+            input.focus();
         });
 
         document.addEventListener('keydown', (event) => {

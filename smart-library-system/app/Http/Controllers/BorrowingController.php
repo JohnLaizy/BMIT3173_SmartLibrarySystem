@@ -63,8 +63,9 @@ class BorrowingController extends Controller
             });
         }
 
+        // 每页固定五笔借阅记录，和其他资料列表保持一致。
         $borrowings = $borrowingsQuery
-            ->paginate(10)
+            ->paginate(5)
             ->withQueryString();
 
         $availableBooks = $user->isStudent()
