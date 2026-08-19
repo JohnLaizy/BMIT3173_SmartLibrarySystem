@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 
 class Book extends Model
 {
@@ -48,5 +49,26 @@ class Book extends Model
         return $this->hasMany(
             BookReservation::class
         );
+    }
+
+    public const TYPE_PHYSICAL = 'physical';
+
+    public const TYPE_EBOOK = 'ebook';
+
+    public function isPhysical(): bool
+    {
+        return $this->type === self::TYPE_PHYSICAL;
+    }
+
+    public function isEbook(): bool
+    {
+        return $this->type === self::TYPE_EBOOK;
+    }
+
+    public function scopeBorrowable(Builder $query): Builder
+    {
+        return $query
+            ->where('type', self::TYPE_PHYSICAL)
+            ->where('available_copies', '>', 0);
     }
 }

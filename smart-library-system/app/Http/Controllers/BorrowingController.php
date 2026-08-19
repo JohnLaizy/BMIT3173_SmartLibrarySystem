@@ -13,7 +13,6 @@ use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -70,7 +69,7 @@ class BorrowingController extends Controller
 
         $availableBooks = $user->isStudent()
             ? Book::query()
-                ->where('available_copies', '>', 0)
+                ->borrowable()
                 ->orderBy('title')
                 ->get()
             : collect();
@@ -281,7 +280,8 @@ class BorrowingController extends Controller
 
     public function updateCopyQuantity(
         Request $request,
-        Book $book
+        Book $book,
+        BorrowingService $service
     ): RedirectResponse {
         $user = $this->authenticatedUser($request);
 
@@ -304,51 +304,11 @@ class BorrowingController extends Controller
 
         return $this->performAction(
             $request,
-            function () use ($book, $newTotal): void {
-                DB::transaction(
-                    function () use ($book, $newTotal): void {
-                        /*
-                        * BorrowingService also locks the book before
-                        * borrowing or returning. Therefore, quantity
-                        * updates cannot race with those operations.
-                        */
-                        $lockedBook = Book::query()
-                            ->lockForUpdate()
-                            ->findOrFail($book->id);
-
-                        $activeBorrowings = Borrowing::query()
-                            ->where(
-                                'book_id',
-                                $lockedBook->id
-                            )
-                            ->whereNull('returned_at')
-                            ->lockForUpdate()
-                            ->count();
-
-                        if ($newTotal < $activeBorrowings) {
-                            throw BorrowingRuleViolation::because(
-                                "Total copies cannot be lower than the {$activeBorrowings} copies currently on loan."
-                            );
-                        }
-
-                        $lockedBook->update([
-                            'total_copies' => $newTotal,
-
-                            'available_copies' => $newTotal - $activeBorrowings,
-                        ]);
-
-                        Log::info(
-                            'Book copy quantity updated.',
-                            [
-                                'book_id' => $lockedBook->id,
-                                'total_copies' => $newTotal,
-                                'available_copies' => $newTotal - $activeBorrowings,
-                            ]
-                        );
-                    },
-                    attempts: 3
-                );
-            },
+            fn () => $service->updateCopyQuantity(
+                $user,
+                $book,
+                $newTotal
+            ),
             'Book copy quantity updated successfully.'
         );
     }
