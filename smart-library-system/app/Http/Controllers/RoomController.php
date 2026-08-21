@@ -283,89 +283,58 @@ public function destroy(
      */
 
     private function indexParameters(Request $request): array
-    {
-        $parameters = [
-            'page' => max(1, (int) $request->input('page', 1)),
-            /*
-             * 编辑表单也使用 name=type/capacity/location 等字段。
-             * 返回列表时只读取 URL query 的筛选值，避免把刚保存的
-             * Room 资料误当作 Room Management 的筛选条件。
-             */
-            'search' => trim((string) $request->query('search', '')),
-            'type' => trim((string) $request->query('type', '')),
-            'capacity' => $request->filled('capacity')
-                && $request->query('capacity') !== null
-                ? (int) $request->query('capacity')
-                : '',
-            'location' => trim((string) $request->query('location', '')),
-            'facilities' => is_array($request->query('facilities'))
-                ? array_values(
-                    array_filter(
-                        $request->query('facilities'),
-                        fn ($facility): bool => is_string($facility)
-                            && $facility !== ''
-                    )
+{
+    $page = $request->query('page');
+
+    if ($page === null) {
+        $page = $request->input('page', 1);
+    }
+
+    $facilities = $request->query('facilities', []);
+
+    $parameters = [
+        'page' => max(1, (int) $page),
+
+        'search' => trim(
+            (string) $request->query('search', '')
+        ),
+
+        'type' => trim(
+            (string) $request->query('type', '')
+        ),
+
+        'capacity' => $request->query('capacity') !== null
+            ? (int) $request->query('capacity')
+            : '',
+
+        'location' => trim(
+            (string) $request->query('location', '')
+        ),
+
+        'facilities' => is_array($facilities)
+            ? array_values(
+                array_filter(
+                    $facilities,
+                    fn ($facility): bool =>
+                        is_string($facility)
+                        && $facility !== ''
                 )
-                : [],
-        ]; 
+            )
+            : [],
+    ];
 
+    return array_filter(
+        $parameters,
+        function ($value): bool {
+            if (is_array($value)) {
+                return $value !== [];
+            }
 
-
-
-
-   private function indexParameters(Request $request): array
-   {
-       $page = $request->query('page');
-
-       if ($page === null) {
-           $page = $request->input('page', 1);
-       }
-
-       $facilities = $request->query('facilities', []);
-
-       $parameters = [
-           'page' => max(1, (int) $page),
-
-           'search' => trim(
-               (string) $request->query('search', '')
-           ),
-
-          'type' => trim(
-              (string) $request->query('type', '')
-          ),
-
-          'capacity' => $request->query('capacity') !== null
-              ? (int) $request->query('capacity')
-              : '',
-
-          'location' => trim(
-              (string) $request->query('location', '')
-          ),
-
-          'facilities' => is_array($facilities)
-              ? array_values(
-                  array_filter(
-                      $facilities,
-                      fn ($facility): bool =>
-                          is_string($facility)
-                          && $facility !== ''
-                  )
-              )
-              : [],
-      ];
-
-      return array_filter(
-          $parameters,
-          function ($value): bool {
-              if (is_array($value)) {
-                  return $value !== [];
-              }
-
-              return $value !== ''
-                  && $value !== null;
-          }
-      );
-  }
+            return $value !== ''
+                && $value !== null;
+        }
+    );
+}
 
 
 
