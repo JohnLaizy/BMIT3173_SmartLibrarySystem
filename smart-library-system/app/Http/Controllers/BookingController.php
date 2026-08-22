@@ -7,6 +7,7 @@ use App\Models\Room;
 use App\Services\Booking\StandardBookingStrategy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Requests\RejectBorrowingRenewalRequest;
 
 class BookingController extends Controller
 {
