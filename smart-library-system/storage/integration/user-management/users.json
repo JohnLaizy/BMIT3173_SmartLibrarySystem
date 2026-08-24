@@ -1,0 +1,16 @@
+[
+    {
+        "user_id": "1",
+        "name": "Ali Ahmad",
+        "email": "ali@example.com",
+        "account_status": "ACTIVE",
+        "borrowing_allowed": true
+    },
+    {
+        "user_id": "2",
+        "name": "John Tan",
+        "email": "john@example.com",
+        "account_status": "INACTIVE",
+        "borrowing_allowed": false
+    }
+]

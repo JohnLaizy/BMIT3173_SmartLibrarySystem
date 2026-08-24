@@ -1,0 +1,20 @@
+[
+    {
+        "book_id": "1",
+        "title": "Clean Code",
+        "author": "Robert C. Martin",
+        "status": "BORROWED",
+        "borrowable": true,
+        "borrowing_id": "BR001",
+        "borrowed_by": "1"
+    },
+    {
+        "book_id": "2",
+        "title": "Design Patterns",
+        "author": "Erich Gamma",
+        "status": "BORROWED",
+        "borrowable": true,
+        "borrowing_id": "BR002",
+        "borrowed_by": "2"
+    }
+]
