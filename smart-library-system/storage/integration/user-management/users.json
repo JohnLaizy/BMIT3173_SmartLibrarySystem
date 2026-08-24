@@ -1,16 +1,30 @@
 [
     {
         "user_id": "1",
-        "name": "Ali Ahmad",
-        "email": "ali@example.com",
+        "name": "Demo Student",
+        "email": "a@stud.com",
         "account_status": "ACTIVE",
         "borrowing_allowed": true
     },
     {
         "user_id": "2",
-        "name": "John Tan",
-        "email": "john@example.com",
-        "account_status": "INACTIVE",
-        "borrowing_allowed": false
+        "name": "Demo Librarian",
+        "email": "a@admin.com",
+        "account_status": "ACTIVE",
+        "borrowing_allowed": true
+    },
+    {
+        "user_id": "3",
+        "name": "a",
+        "email": "a@a.com",
+        "account_status": "ACTIVE",
+        "borrowing_allowed": true
+    },
+    {
+        "user_id": "4",
+        "name": "Yap Zhi Seen",
+        "email": "yzseen@test.com",
+        "account_status": "ACTIVE",
+        "borrowing_allowed": true
     }
 ]

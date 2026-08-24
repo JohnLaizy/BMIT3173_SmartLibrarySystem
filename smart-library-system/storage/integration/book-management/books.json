@@ -1,20 +1,20 @@
 [
     {
         "book_id": "1",
-        "title": "Clean Code",
-        "author": "Robert C. Martin",
-        "status": "BORROWED",
-        "borrowable": true,
-        "borrowing_id": "BR001",
-        "borrowed_by": "1"
+        "title": "Integrative Programming",
+        "author": "Demo Author",
+        "type": "PHYSICAL",
+        "total_copies": 6,
+        "available_copies": 4,
+        "borrowable": true
     },
     {
         "book_id": "2",
-        "title": "Design Patterns",
-        "author": "Erich Gamma",
-        "status": "BORROWED",
-        "borrowable": true,
-        "borrowing_id": "BR002",
-        "borrowed_by": "2"
+        "title": "67",
+        "author": "Hao Kang",
+        "type": "PHYSICAL",
+        "total_copies": 1,
+        "available_copies": 1,
+        "borrowable": true
     }
 ]

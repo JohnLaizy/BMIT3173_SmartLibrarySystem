@@ -6,17 +6,15 @@ use App\Contracts\BookManagementPort;
 
 class JsonBookManagementAdapter implements BookManagementPort
 {
-    //testing purposes
     private string $filePath;
 
-    public function __construct()
+    public function __construct(?string $filePath = null)
     {
-        $this->filePath = storage_path(
+        $this->filePath = $filePath ?? storage_path(
             'integration/book-management/books.json'
         );
     }
 
-    // Retrieve book information from JSON file
     public function getBook(string $bookId): ?array
     {
         $books = $this->readBooks();
@@ -26,7 +24,10 @@ class JsonBookManagementAdapter implements BookManagementPort
         }
 
         foreach ($books as $book) {
-            if ((string) $book['book_id'] === $bookId) {
+            if (
+                is_array($book)
+                && (string) ($book['book_id'] ?? '') === $bookId
+            ) {
                 return $book;
             }
         }
@@ -45,23 +46,30 @@ class JsonBookManagementAdapter implements BookManagementPort
             return false;
         }
 
-        foreach ($books as &$book) {
-            if ((string) $book['book_id'] === $bookId) {
-
-                if ($book['status'] !== 'AVAILABLE') {
-                    return false;
-                }
-
-                if (!$book['borrowable']) {
-                    return false;
-                }
-
-                $book['status'] = 'BORROWED';
-                $book['borrowing_id'] = $borrowingId;
-                $book['borrowed_by'] = $userId;
-
-                return $this->writeBooks($books);
+        foreach ($books as $index => $book) {
+            if (
+                ! is_array($book)
+                || (string) ($book['book_id'] ?? '') !== $bookId
+            ) {
+                continue;
             }
+
+            if (($book['borrowable'] ?? false) !== true) {
+                return false;
+            }
+
+            $availableCopies = (int) (
+                $book['available_copies'] ?? 0
+            );
+
+            if ($availableCopies <= 0) {
+                return false;
+            }
+
+            $books[$index]['available_copies'] =
+                $availableCopies - 1;
+
+            return $this->writeBooks($books);
         }
 
         return false;
@@ -77,35 +85,41 @@ class JsonBookManagementAdapter implements BookManagementPort
             return false;
         }
 
-        foreach ($books as &$book) {
-            if ((string) $book['book_id'] === $bookId) {
-
-                if ($book['status'] !== 'BORROWED') {
-                    return false;
-                }
-
-                if (
-                    (string) $book['borrowing_id']
-                    !== $borrowingId
-                ) {
-                    return false;
-                }
-
-                $book['status'] = 'AVAILABLE';
-                $book['borrowing_id'] = null;
-                $book['borrowed_by'] = null;
-
-                return $this->writeBooks($books);
+        foreach ($books as $index => $book) {
+            if (
+                ! is_array($book)
+                || (string) ($book['book_id'] ?? '') !== $bookId
+            ) {
+                continue;
             }
+
+            $totalCopies = (int) (
+                $book['total_copies'] ?? 0
+            );
+
+            $availableCopies = (int) (
+                $book['available_copies'] ?? 0
+            );
+
+            if (
+                $totalCopies <= 0
+                || $availableCopies >= $totalCopies
+            ) {
+                return false;
+            }
+
+            $books[$index]['available_copies'] =
+                $availableCopies + 1;
+
+            return $this->writeBooks($books);
         }
 
         return false;
     }
 
-    //Helper methods to read and write books from/to the JSON file
     private function readBooks(): ?array
     {
-        if (!file_exists($this->filePath)) {
+        if (! file_exists($this->filePath)) {
             return null;
         }
 
@@ -117,18 +131,15 @@ class JsonBookManagementAdapter implements BookManagementPort
 
         $books = json_decode($json, true);
 
-        if (!is_array($books)) {
-            return null;
-        }
-
-        return $books;
+        return is_array($books) ? $books : null;
     }
 
     private function writeBooks(array $books): bool
     {
         $json = json_encode(
             $books,
-            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+            JSON_PRETTY_PRINT
+                | JSON_UNESCAPED_SLASHES
         );
 
         if ($json === false) {
@@ -137,7 +148,8 @@ class JsonBookManagementAdapter implements BookManagementPort
 
         return file_put_contents(
             $this->filePath,
-            $json
+            $json.PHP_EOL,
+            LOCK_EX
         ) !== false;
     }
 }

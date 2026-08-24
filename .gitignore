@@ -35,6 +35,7 @@
 .phpactor.json
 _ide_helper.php
 
+
 # Editors and IDEs
 /.vscode/
 /.idea/
