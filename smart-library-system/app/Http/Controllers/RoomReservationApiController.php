@@ -33,10 +33,6 @@ class RoomReservationApiController extends Controller
             ->get();
 
         return response()->json([
-            /*
-             * Return the same request ID received
-             * from the client request.
-             */
             'request_id' =>
                 $request->input('request_id'),
 

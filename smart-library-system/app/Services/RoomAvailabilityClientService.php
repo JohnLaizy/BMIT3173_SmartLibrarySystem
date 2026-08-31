@@ -1,8 +1,12 @@
 <?php
 
+
 namespace App\Services;
 
+
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+
 
 class RoomAvailabilityClientService
 {
@@ -16,11 +20,16 @@ class RoomAvailabilityClientService
         $response = Http::get(
             config('app.url') . '/api/v1/rooms/availability',
             [
+                'request_id' => (string) Str::uuid(),
                 'starts_at' => $startsAt,
                 'ends_at' => $endsAt,
             ]
         );
 
+
         return $response->json();
     }
 }
+
+
+
