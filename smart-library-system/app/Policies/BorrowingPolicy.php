@@ -61,4 +61,26 @@ class BorrowingPolicy
     ): bool {
         return $user->isLibrarian();
     }
+
+    public function requestRenewal(
+        User $user,
+        Borrowing $borrowing
+    ): bool {
+        return $user->isStudent()
+            && $borrowing->user_id === $user->id;
+    }
+
+    public function approveRenewal(
+        User $user,
+        Borrowing $borrowing
+    ): bool {
+        return $user->isLibrarian();
+    }
+
+    public function rejectRenewal(
+        User $user,
+        Borrowing $borrowing
+    ): bool {
+        return $user->isLibrarian();
+    }
 }

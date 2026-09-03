@@ -11,9 +11,18 @@ use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Contracts\UserManagementPort;
+use App\Contracts\BookManagementPort;
 
 class BorrowingService
 {
+    public function __construct(
+        private UserManagementPort $userManagement,
+        private BookManagementPort $bookManagement
+    ) {
+
+    }
+
     public function borrow(
         User $student,
         Book $book,
@@ -22,6 +31,64 @@ class BorrowingService
         if (! $student->isStudent()) {
             throw BorrowingRuleViolation::because(
                 'Only students may borrow books.'
+            );
+        }
+
+        //user validation through user management integration
+        $userData = $this->userManagement->getUser(
+            (string) $student->id
+        );
+
+        if ($userData === null) {
+            throw BorrowingRuleViolation::because(
+                'The user could not be verified by User Management.'
+            );
+        }
+
+        if (
+            ($userData['account_status'] ?? null)
+            !== 'ACTIVE'
+        ) {
+            throw BorrowingRuleViolation::because(
+                'The user account is not active.'
+            );
+        }
+
+        if (
+            ($userData['borrowing_allowed'] ?? false)
+            !== true
+        ) {
+            throw BorrowingRuleViolation::because(
+                'User Management does not allow this user to borrow books.'
+            );
+        }
+
+        //book validation through book management integration
+        $bookData = $this->bookManagement->getBook(
+            (string) $book->id
+        );
+
+        if ($bookData === null) {
+            throw BorrowingRuleViolation::because(
+                'The book could not be verified by Book Management.'
+            );
+        }
+
+        if (
+            ($bookData['borrowable'] ?? false)
+            !== true
+        ) {
+            throw BorrowingRuleViolation::because(
+                'Book Management does not allow this book to be borrowed.'
+            );
+        }
+
+        if (
+            (int) ($bookData['available_copies'] ?? 0)
+            <= 0
+        ) {
+            throw BorrowingRuleViolation::because(
+                'Book Management reports that no copy is currently available.'
             );
         }
 
@@ -179,6 +246,19 @@ class BorrowingService
 
                 $lockedBook->save();
 
+                $bookUpdated = $this->bookManagement
+                    ->markBorrowed(
+                        (string) $lockedBook->id,
+                        (string) $borrowing->id,
+                        (string) $lockedStudent->id
+                    );
+
+                if (! $bookUpdated) {
+                    throw BorrowingRuleViolation::because(
+                        'Book Management could not confirm the borrowed copy.'
+                    );
+                }                
+
                 Log::info('Book copy borrowed.', [
                     'borrowing_id' => $borrowing->id,
                     'book_id' => $lockedBook->id,
@@ -261,6 +341,18 @@ class BorrowingService
                 );
 
                 $lockedBook->save();
+
+                $bookUpdated = $this->bookManagement
+                    ->markReturned(
+                        (string) $lockedBook->id,
+                        (string) $lockedBorrowing->id
+                    );
+
+                if (! $bookUpdated) {
+                    throw BorrowingRuleViolation::because(
+                        'Book Management could not confirm the returned copy.'
+                    );
+                }
 
                 Log::info('Book copy returned.', [
                     'borrowing_id' => $lockedBorrowing->id,
@@ -583,5 +675,339 @@ class BorrowingService
             },
             attempts: 3
         );
+    }
+
+    public function requestRenewal(
+        User $student,
+        Borrowing $borrowing
+    ): Borrowing {
+        if (
+            ! $student->isStudent()
+            || $borrowing->user_id !== $student->id
+        ) {
+            throw BorrowingRuleViolation::because(
+                'You may request an extension only for your own borrowing.'
+            );
+        }
+
+        return DB::transaction(
+            function () use (
+                $student,
+                $borrowing
+            ): Borrowing {
+                [
+                    $lockedStudent,
+                    $lockedBorrowing,
+                    $hasUnresolvedOverdue,
+                    $hasBlockingReservation,
+                ] = $this->lockRenewalContext(
+                    $borrowing
+                );
+
+                if (
+                    ! $lockedStudent->isStudent()
+                    || $lockedStudent->id !== $student->id
+                ) {
+                    throw BorrowingRuleViolation::because(
+                        'You may request an extension only for your own borrowing.'
+                    );
+                }
+
+                $this->assertRenewalEligible(
+                    $lockedBorrowing,
+                    $hasUnresolvedOverdue,
+                    $hasBlockingReservation,
+                    requiresPendingRequest: false
+                );
+
+                $lockedBorrowing->forceFill([
+                    'renewal_status' =>
+                        Borrowing::RENEWAL_STATUS_PENDING,
+
+                    'renewal_requested_at' => now(),
+                    'renewal_reviewed_at' => null,
+                    'renewal_reviewed_by' => null,
+                    'renewal_rejection_reason' => null,
+                ])->save();
+
+                Log::info('Borrowing extension requested.', [
+                    'borrowing_id' => $lockedBorrowing->id,
+                    'user_id' => $lockedStudent->id,
+                ]);
+
+                return $lockedBorrowing;
+            },
+            attempts: 3
+        );
+    }
+
+    public function approveRenewal(
+        User $librarian,
+        Borrowing $borrowing
+    ): Borrowing {
+        if (! $librarian->isLibrarian()) {
+            throw BorrowingRuleViolation::because(
+                'Only librarians may approve extension requests.'
+            );
+        }
+
+        return DB::transaction(
+            function () use (
+                $librarian,
+                $borrowing
+            ): Borrowing {
+                [
+                    $lockedStudent,
+                    $lockedBorrowing,
+                    $hasUnresolvedOverdue,
+                    $hasBlockingReservation,
+                ] = $this->lockRenewalContext(
+                    $borrowing
+                );
+
+                $this->assertRenewalEligible(
+                    $lockedBorrowing,
+                    $hasUnresolvedOverdue,
+                    $hasBlockingReservation,
+                    requiresPendingRequest: true
+                );
+
+                $extensionDays = max(
+                    1,
+                    (int) config(
+                        'library.renewal_extension_days',
+                        7
+                    )
+                );
+
+                $lockedBorrowing->forceFill([
+                    'due_at' => $lockedBorrowing
+                        ->due_at
+                        ->addDays($extensionDays),
+
+                    'renewal_status' =>
+                        Borrowing::RENEWAL_STATUS_APPROVED,
+
+                    'renewal_reviewed_at' => now(),
+                    'renewal_reviewed_by' => $librarian->id,
+                    'renewal_rejection_reason' => null,
+                    'renewal_count' =>
+                        (int) $lockedBorrowing->renewal_count + 1,
+                ])->save();
+
+                Log::info('Borrowing extension approved.', [
+                    'borrowing_id' => $lockedBorrowing->id,
+                    'user_id' => $lockedStudent->id,
+                    'reviewed_by' => $librarian->id,
+                    'due_at' =>
+                        $lockedBorrowing->due_at->toIso8601String(),
+                ]);
+
+                return $lockedBorrowing;
+            },
+            attempts: 3
+        );
+    }
+
+    public function rejectRenewal(
+        User $librarian,
+        Borrowing $borrowing,
+        string $reason
+    ): Borrowing {
+        if (! $librarian->isLibrarian()) {
+            throw BorrowingRuleViolation::because(
+                'Only librarians may reject extension requests.'
+            );
+        }
+
+        $reason = trim($reason);
+
+        if ($reason === '') {
+            throw BorrowingRuleViolation::because(
+                'A rejection reason is required.'
+            );
+        }
+
+        return DB::transaction(
+            function () use (
+                $librarian,
+                $borrowing,
+                $reason
+            ): Borrowing {
+                [
+                    $lockedStudent,
+                    $lockedBorrowing,
+                ] = $this->lockRenewalContext(
+                    $borrowing
+                );
+
+                if (
+                    $lockedBorrowing->renewal_status
+                    !== Borrowing::RENEWAL_STATUS_PENDING
+                ) {
+                    throw BorrowingRuleViolation::because(
+                        'Only pending extension requests may be rejected.'
+                    );
+                }
+
+                $lockedBorrowing->forceFill([
+                    'renewal_status' =>
+                        Borrowing::RENEWAL_STATUS_REJECTED,
+
+                    'renewal_reviewed_at' => now(),
+                    'renewal_reviewed_by' => $librarian->id,
+                    'renewal_rejection_reason' => $reason,
+                ])->save();
+
+                Log::info('Borrowing extension rejected.', [
+                    'borrowing_id' => $lockedBorrowing->id,
+                    'user_id' => $lockedStudent->id,
+                    'reviewed_by' => $librarian->id,
+                ]);
+
+                return $lockedBorrowing;
+            },
+            attempts: 3
+        );
+    }
+
+    /**
+     * Locks renewal data in this order:
+     * student -> student borrowings -> book -> reservations.
+     *
+     * @return array{0: User, 1: Borrowing, 2: bool, 3: bool}
+     */
+    private function lockRenewalContext(
+        Borrowing $borrowing
+    ): array {
+        $lockedStudent = User::query()
+            ->lockForUpdate()
+            ->findOrFail($borrowing->user_id);
+
+        $studentBorrowings = Borrowing::query()
+            ->where('user_id', $lockedStudent->id)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        $lockedBorrowing = $studentBorrowings
+            ->firstWhere('id', $borrowing->id);
+
+        if (! $lockedBorrowing instanceof Borrowing) {
+            throw BorrowingRuleViolation::because(
+                'The borrowing no longer belongs to this student.'
+            );
+        }
+
+        $hasUnresolvedOverdue = $studentBorrowings->contains(
+            fn (Borrowing $candidate): bool =>
+                $candidate->id !== $lockedBorrowing->id
+                && in_array(
+                    $candidate->status,
+                    Borrowing::UNRESOLVED_OVERDUE_STATUSES,
+                    true
+                )
+        );
+
+        $lockedBook = Book::query()
+            ->lockForUpdate()
+            ->findOrFail($lockedBorrowing->book_id);
+
+        $blockingReservation = BookReservation::query()
+            ->where('book_id', $lockedBook->id)
+            ->where('user_id', '!=', $lockedStudent->id)
+            ->where(
+                'status',
+                BookReservation::STATUS_APPROVED
+            )
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '>', now())
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->first();
+
+        return [
+            $lockedStudent,
+            $lockedBorrowing,
+            $hasUnresolvedOverdue,
+            $blockingReservation !== null,
+        ];
+    }
+
+    private function assertRenewalEligible(
+        Borrowing $borrowing,
+        bool $hasUnresolvedOverdue,
+        bool $hasBlockingReservation,
+        bool $requiresPendingRequest
+    ): void {
+        if (
+            $requiresPendingRequest
+            && $borrowing->renewal_status
+                !== Borrowing::RENEWAL_STATUS_PENDING
+        ) {
+            throw BorrowingRuleViolation::because(
+                'Only pending extension requests may be approved.'
+            );
+        }
+
+        if (
+            ! $requiresPendingRequest
+            && $borrowing->renewal_status
+                === Borrowing::RENEWAL_STATUS_PENDING
+        ) {
+            throw BorrowingRuleViolation::because(
+                'An extension request is already pending.'
+            );
+        }
+
+        if ($borrowing->returned_at !== null) {
+            throw BorrowingRuleViolation::because(
+                'Returned borrowings cannot be renewed.'
+            );
+        }
+
+        if (
+            $borrowing->status === Borrowing::STATUS_OVERDUE
+            || $borrowing->due_at->lessThanOrEqualTo(now())
+        ) {
+            throw BorrowingRuleViolation::because(
+                'Overdue borrowings cannot be renewed.'
+            );
+        }
+
+        if (
+            $borrowing->status
+            !== Borrowing::STATUS_BORROWED
+        ) {
+            throw BorrowingRuleViolation::because(
+                'Only active borrowed copies may be renewed.'
+            );
+        }
+
+        $maximumRenewals = max(
+            0,
+            (int) config('library.max_renewals', 1)
+        );
+
+        if (
+            (int) $borrowing->renewal_count
+            >= $maximumRenewals
+        ) {
+            throw BorrowingRuleViolation::because(
+                'The maximum number of extensions has been reached.'
+            );
+        }
+
+        if ($hasUnresolvedOverdue) {
+            throw BorrowingRuleViolation::because(
+                'Resolve all overdue borrowing records before requesting an extension.'
+            );
+        }
+
+        if ($hasBlockingReservation) {
+            throw BorrowingRuleViolation::because(
+                'This borrowing cannot be extended because another student has an approved reservation for the book.'
+            );
+        }
     }
 }

@@ -11,6 +11,16 @@ return [
         7
     ),
 
+    'renewal_extension_days' => (int) env(
+        'LIBRARY_RENEWAL_EXTENSION_DAYS',
+        7
+    ),
+
+    'max_renewals' => (int) env(
+        'LIBRARY_MAX_RENEWALS',
+        1
+    ),
+
     'overdue_fee_cents_per_day' => (int) env(
         'LIBRARY_OVERDUE_FEE_CENTS_PER_DAY',
         100

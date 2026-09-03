@@ -257,6 +257,32 @@ Route::middleware([
                     'rejectPayment',
                 ]
             )->name('payment.reject');
+
+            Route::post(
+                '/{borrowing}/renewal',
+                [
+                    BorrowingController::class,
+                    'requestRenewal',
+                ]
+            )
+                ->middleware('throttle:10,1')
+                ->name('renewal.request');
+
+            Route::patch(
+                '/{borrowing}/renewal/approve',
+                [
+                    BorrowingController::class,
+                    'approveRenewal',
+                ]
+            )->name('renewal.approve');
+
+            Route::patch(
+                '/{borrowing}/renewal/reject',
+                [
+                    BorrowingController::class,
+                    'rejectRenewal',
+                ]
+            )->name('renewal.reject');
         });
 
     Route::patch(

@@ -361,6 +361,29 @@
                                         default =>
                                             'border border-zinc-400/25 bg-zinc-500/15 text-zinc-700 dark:text-zinc-300',
                                     };
+
+                                    $renewalLabel = match (
+                                        $borrowing->renewal_status
+                                    ) {
+                                        \App\Models\Borrowing::RENEWAL_STATUS_PENDING =>
+                                            'Extension Pending',
+
+                                        \App\Models\Borrowing::RENEWAL_STATUS_APPROVED =>
+                                            'Extension Approved',
+
+                                        \App\Models\Borrowing::RENEWAL_STATUS_REJECTED =>
+                                            'Extension Rejected',
+
+                                        default => null,
+                                    };
+
+                                    $maximumRenewals = max(
+                                        0,
+                                        (int) config(
+                                            'library.max_renewals',
+                                            1
+                                        )
+                                    );
                                 @endphp
 
                                 <tr class="h-24 transition-colors hover:bg-zinc-900/80">
@@ -393,15 +416,40 @@
                                     </td>
 
                                     <td class="px-4 py-4">
-                                        <span
-                                            class="whitespace-nowrap rounded-full
-                                                   px-2.5 py-1 text-xs font-medium
-                                                   {{ $statusClasses }}"
-                                        >
-                                            {{ $statusLabel }}
-                                        </span>
-                                    </td>
+                                        <div class="flex flex-col items-start gap-2">
+                                            <span
+                                                class="whitespace-nowrap rounded-full
+                                                       px-2.5 py-1 text-xs font-medium
+                                                       {{ $statusClasses }}"
+                                            >
+                                                {{ $statusLabel }}
+                                            </span>
 
+                                            @if ($renewalLabel !== null)
+                                                <span class="text-xs font-medium text-violet-300">
+                                                    {{ $renewalLabel }}
+                                                    ({{ $borrowing->renewal_count }}/{{ $maximumRenewals }})
+                                                </span>
+
+                                                @if (
+                                                    $borrowing->renewal_status ===
+                                                    \App\Models\Borrowing::RENEWAL_STATUS_REJECTED
+                                                )
+                                                    <span class="max-w-48 text-xs text-red-300">
+                                                        {{ $borrowing->renewal_rejection_reason }}
+                                                    </span>
+                                                @endif
+
+                                                @if ($borrowing->renewalReviewer)
+                                                    <span class="text-xs text-zinc-500">
+                                                        Reviewed by
+                                                        {{ $borrowing->renewalReviewer->name }}
+                                                    </span>
+                                                @endif
+                                            @endif
+                                        </div>
+                                    </td>
+                                    
                                     <td class="whitespace-nowrap px-4 py-4">
                                         RM {{ number_format(
                                             $borrowing->overdue_fee_cents / 100,
@@ -411,7 +459,103 @@
 
                                     <td class="min-w-56 px-4 py-4">
                                         <div class="flex flex-col gap-2">
-                                            @if ($borrowing->returned_at === null)
+                                            @can('requestRenewal', $borrowing)
+                                                @if (
+                                                    ! $hasUnresolvedOverdue
+                                                    && $borrowing->returned_at === null
+                                                    && $borrowing->status ===
+                                                        \App\Models\Borrowing::STATUS_BORROWED
+                                                    && $borrowing->due_at->isFuture()
+                                                    && $borrowing->renewal_status !==
+                                                        \App\Models\Borrowing::RENEWAL_STATUS_PENDING
+                                                    && $borrowing->renewal_count <
+                                                        $maximumRenewals
+                                                )
+                                                    <form
+                                                        method="POST"
+                                                        action="{{ route(
+                                                            'borrowings.renewal.request',
+                                                            $borrowing
+                                                        ) }}"
+                                                    >
+                                                        @csrf
+
+                                                        <flux:button
+                                                            type="submit"
+                                                            size="sm"
+                                                            variant="primary"
+                                                        >
+                                                            Request extension
+                                                        </flux:button>
+                                                    </form>
+                                                @endif
+                                            @endcan
+
+                                            @if (
+                                                $borrowing->renewal_status ===
+                                                \App\Models\Borrowing::RENEWAL_STATUS_PENDING
+                                            )
+                                                @can('approveRenewal', $borrowing)
+                                                    <form
+                                                        method="POST"
+                                                        action="{{ route(
+                                                            'borrowings.renewal.approve',
+                                                            $borrowing
+                                                        ) }}"
+                                                    >
+                                                        @csrf
+                                                        @method('PATCH')
+
+                                                        <flux:button
+                                                            type="submit"
+                                                            size="sm"
+                                                            variant="primary"
+                                                        >
+                                                            Approve extension
+                                                        </flux:button>
+                                                    </form>
+                                                @endcan
+
+                                                @can('rejectRenewal', $borrowing)
+                                                    <form
+                                                        method="POST"
+                                                        action="{{ route(
+                                                            'borrowings.renewal.reject',
+                                                            $borrowing
+                                                        ) }}"
+                                                        class="flex flex-col gap-2"
+                                                    >
+                                                        @csrf
+                                                        @method('PATCH')
+
+                                                        <label
+                                                            class="text-xs text-zinc-400"
+                                                            for="renewal-reason-{{ $borrowing->id }}"
+                                                        >
+                                                            Rejection reason
+                                                        </label>
+
+                                                        <input
+                                                            id="renewal-reason-{{ $borrowing->id }}"
+                                                            name="renewal_rejection_reason"
+                                                            type="text"
+                                                            required
+                                                            maxlength="255"
+                                                            class="rounded-lg border border-zinc-700
+                                                                   bg-zinc-900 px-3 py-2 text-sm"
+                                                        >
+
+                                                        <flux:button
+                                                            type="submit"
+                                                            size="sm"
+                                                            variant="danger"
+                                                        >
+                                                            Reject extension
+                                                        </flux:button>
+                                                    </form>
+                                                @endcan
+                                            @endif                                            
+                                            @if ($borrowing->returned_at === null)                                            
                                                 @can('returnCopy', $borrowing)
                                                     <form
                                                         method="POST"

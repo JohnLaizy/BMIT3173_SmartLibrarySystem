@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
+use App\Http\Requests\RejectBorrowingRenewalRequest;
 
 class BorrowingController extends Controller
 {
@@ -37,6 +38,7 @@ class BorrowingController extends Controller
                 'book',
                 'student',
                 'paymentApprover',
+                'renewalReviewer',
             ])
             ->latest('borrowed_at');
 
@@ -310,6 +312,75 @@ class BorrowingController extends Controller
                 $newTotal
             ),
             'Book copy quantity updated successfully.'
+        );
+    }
+
+    public function requestRenewal(
+        Request $request,
+        Borrowing $borrowing,
+        BorrowingService $service
+    ): RedirectResponse {
+        $user = $this->authenticatedUser($request);
+
+        Gate::authorize(
+            'requestRenewal',
+            $borrowing
+        );
+
+        return $this->performAction(
+            $request,
+            fn () => $service->requestRenewal(
+                $user,
+                $borrowing
+            ),
+            'Extension request submitted.'
+        );
+    }
+
+    public function approveRenewal(
+        Request $request,
+        Borrowing $borrowing,
+        BorrowingService $service
+    ): RedirectResponse {
+        $user = $this->authenticatedUser($request);
+
+        Gate::authorize(
+            'approveRenewal',
+            $borrowing
+        );
+
+        return $this->performAction(
+            $request,
+            fn () => $service->approveRenewal(
+                $user,
+                $borrowing
+            ),
+            'Extension request approved.'
+        );
+    }
+
+    public function rejectRenewal(
+        RejectBorrowingRenewalRequest $request,
+        Borrowing $borrowing,
+        BorrowingService $service
+    ): RedirectResponse {
+        $user = $this->authenticatedUser($request);
+
+        Gate::authorize(
+            'rejectRenewal',
+            $borrowing
+        );
+
+        $validated = $request->validated();
+
+        return $this->performAction(
+            $request,
+            fn () => $service->rejectRenewal(
+                $user,
+                $borrowing,
+                $validated['renewal_rejection_reason']
+            ),
+            'Extension request rejected.'
         );
     }
 }

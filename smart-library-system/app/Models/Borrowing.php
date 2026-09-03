@@ -33,6 +33,12 @@ use LogicException;
  * @property CarbonImmutable|null $payment_submitted_at
  * @property CarbonImmutable|null $payment_approved_at
  * @property int<1, max>|null $payment_approved_by
+ * @property string|null $renewal_status
+ * @property CarbonImmutable|null $renewal_requested_at
+ * @property CarbonImmutable|null $renewal_reviewed_at
+ * @property int<1, max>|null $renewal_reviewed_by
+ * @property string|null $renewal_rejection_reason
+ * @property int<0, max> $renewal_count
  */
 #[Fillable([
     'user_id',
@@ -41,6 +47,12 @@ use LogicException;
     'borrowed_at',
     'due_at',
     'payment_method',
+    'renewal_status',
+    'renewal_requested_at',
+    'renewal_reviewed_at',
+    'renewal_reviewed_by',
+    'renewal_rejection_reason',
+    'renewal_count',
 ])]
 class Borrowing extends Model
 {
@@ -57,6 +69,12 @@ class Borrowing extends Model
     public const STATUS_PAYMENT_PENDING = 'payment_pending';
 
     public const STATUS_COMPLETED = 'completed';
+
+    public const RENEWAL_STATUS_PENDING = 'pending';
+
+    public const RENEWAL_STATUS_APPROVED = 'approved';
+
+    public const RENEWAL_STATUS_REJECTED = 'rejected';
 
     public const UNRESOLVED_OVERDUE_STATUSES = [
         self::STATUS_OVERDUE,
@@ -130,6 +148,17 @@ class Borrowing extends Model
         return $query->whereIn(
             'status',
             self::UNRESOLVED_OVERDUE_STATUSES
+        );
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function renewalReviewer(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'renewal_reviewed_by'
         );
     }
 

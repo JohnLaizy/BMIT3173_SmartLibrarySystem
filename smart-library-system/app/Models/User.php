@@ -80,7 +80,7 @@ class User extends Authenticatable
         $initials = Str::initials($this->name, true);
 
         return Str::length($initials) > 1
-            ? Str::substr($initials, 0, 1).Str::substr($initials, -1)
+            ? Str::substr($initials, 0, 1) . Str::substr($initials, -1)
             : $initials;
     }
 
@@ -95,12 +95,10 @@ class User extends Authenticatable
         return $this->role === self::ROLE_LIBRARIAN;
     }
 
-
-
-     public function isActive(): bool
-{
-    return $this->account_status === self::STATUS_ACTIVE;
-}
+    public function isActive(): bool
+    {
+        return $this->account_status === self::STATUS_ACTIVE;
+    }
 
 
     /**
@@ -133,8 +131,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Student 建立的 Room Reservations。
-     *
      * @return HasMany<RoomReservation, $this>
      */
     public function roomReservations(): HasMany
@@ -146,8 +142,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Librarian 建立的 Room Maintenance 记录。
-     *
      * @return HasMany<RoomMaintenance, $this>
      */
     public function createdRoomMaintenances(): HasMany
