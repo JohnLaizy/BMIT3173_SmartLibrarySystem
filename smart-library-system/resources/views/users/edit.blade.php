@@ -87,27 +87,17 @@
                     Account Status
                 </label>
 
-                <select
-                    name="account_status"
-                    class="w-full rounded-lg border border-zinc-300
-                           bg-white px-3 py-2
-                           dark:border-zinc-600 dark:bg-zinc-800"
-                    @disabled(auth()->id() === $user->id)
-                >
-                    <option
-                        value="active"
-                        @selected(old('account_status', $user->account_status) === 'active')
-                    >
-                        Active
-                    </option>
+                <div>
+                    
 
-                    <option
-                        value="inactive"
-                        @selected(old('account_status', $user->account_status) === 'inactive')
-                    >
-                        Inactive
-                    </option>
-                </select>
+                <p class="mt-1">
+                    {{ ucfirst($user->account_status) }}
+                </p>
+
+                <p class="text-sm text-gray-500">
+                    Automatically managed based on overdue fines and payment status.
+                </p>
+            </div>
 
                 @if (auth()->id() === $user->id)
                     <input

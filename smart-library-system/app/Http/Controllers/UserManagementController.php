@@ -84,13 +84,6 @@ class UserManagementController extends Controller
                     User::ROLE_LIBRARIAN,
                 ]),
             ],
-            'account_status' => [
-                'required',
-                Rule::in([
-                    User::STATUS_ACTIVE,
-                    User::STATUS_INACTIVE,
-                ]),
-            ],
         ]);
 
         // Prevent librarians from removing their own librarian access

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\UserStatusApiController;
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\RoomAvailabilityApiController;
@@ -41,6 +42,18 @@ Route::get(
 */
 
 Route::prefix('v1')->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | User Management APIs
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/users/{user}/account-status',
+        [UserStatusApiController::class, 'show']
+    )->name('api.users.account-status');
+
 
 
     /*
