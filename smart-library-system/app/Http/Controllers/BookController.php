@@ -213,22 +213,9 @@ class BookController extends Controller
     }
 
    
-    public function show(Request $request, int $id): View|JsonResponse
+    public function show(Request $request, Book $book): View|JsonResponse
     {
         try {
-            $book = Book::find($id);
-
-            if (! $book) {
-                if ($request->wantsJson()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Book not found.',
-                    ], Response::HTTP_NOT_FOUND);
-                }
-
-                return redirect()->route('books.index')->with('error', 'Book not found.');
-            }
-
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => true,
@@ -241,7 +228,7 @@ class BookController extends Controller
         } catch (Throwable $e) {
             Log::error('Failed to fetch book details.', [
                 'event' => 'BOOK_SHOW_ERROR',
-                'book_id' => $id,
+                'book_id' => $book->id,
                 'error_message' => $e->getMessage(),
                 'ip_address' => $request->ip(),
             ]);
@@ -258,30 +245,14 @@ class BookController extends Controller
     }
 
 
-    public function edit(int $id): View|RedirectResponse
+    public function edit(Book $book): View
     {
-        $book = Book::find($id);
-
-        if (! $book) {
-            return redirect()->route('books.index')->with('error', 'Book not found.');
-        }
-
         return view('books.edit', compact('book'));
     }
 
    
-    public function update(Request $request, int $id): JsonResponse|RedirectResponse
+    public function update(Request $request, Book $book): JsonResponse|RedirectResponse
     {
-        $book = Book::find($id);
-
-        if (! $book) {
-            if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Book not found.'], Response::HTTP_NOT_FOUND);
-            }
-
-            return redirect()->route('books.index')->with('error', 'Book not found.');
-        }
-
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'author' => ['required', 'string', 'max:255'],
@@ -346,7 +317,7 @@ class BookController extends Controller
 
             Log::error('Book update failed.', [
                 'event' => 'BOOK_UPDATE_FAILED',
-                'book_id' => $id,
+                'book_id' => $book->id,
                 'error_message' => $e->getMessage(),
                 'ip_address' => $request->ip(),
             ]);
@@ -365,17 +336,8 @@ class BookController extends Controller
     /**
      * 删除图书及关联物理文件 (Secure File Deletion & Cross-Module Verification)
      */
-    public function destroy(Request $request, int $id): JsonResponse|RedirectResponse
+    public function destroy(Request $request, Book $book): JsonResponse|RedirectResponse
     {
-        $book = Book::find($id);
-
-        if (! $book) {
-            if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Book not found.'], Response::HTTP_NOT_FOUND);
-            }
-            return redirect()->route('books.index')->with('error', 'Book not found.');
-        }
-
         // =========================================================================
         // 1. Consume REST JSON API (跨模块 API 检查活跃状态)
         // =========================================================================
@@ -430,7 +392,7 @@ class BookController extends Controller
 
             Log::info('Book and its historical records deleted successfully.', [
                 'event' => 'BOOK_DELETION_SUCCESS',
-                'book_id' => $id,
+                'book_id' => $book->id,
                 'performed_by' => $request->user()?->id,
             ]);
 

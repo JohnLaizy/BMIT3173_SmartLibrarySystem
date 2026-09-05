@@ -57,7 +57,7 @@ Route::prefix('v1')->group(function () {
     );
 
     Route::get(
-        '/books/{id}',
+        '/books/{book}',
         [BookController::class, 'show']
     );
 
@@ -117,13 +117,13 @@ Route::prefix('v1')->group(function () {
 
          
                 Route::put(
-                    '/books/{id}',
+                    '/books/{book}',
                     [BookController::class, 'update']
                 );
 
              
                 Route::delete(
-                    '/books/{id}',
+                    '/books/{book}',
                     [BookController::class, 'destroy']
                 );
 

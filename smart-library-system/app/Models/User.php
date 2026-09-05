@@ -152,8 +152,4 @@ class User extends Authenticatable
         );
     }
 
-    public function canManageBooks(): bool
-{
-    return strtolower((string) $this->role) !== 'student';
-}
 }

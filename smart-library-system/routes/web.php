@@ -361,15 +361,16 @@ Route::middleware([
     | Book Management
     |--------------------------------------------------------------------------
     */
-// All logged-in users, including students, can browse books.
-Route::resource('books', BookController::class)
-    ->only(['index', 'show']);
-
-// Only non-students can create, edit, update, or delete books.
+// Register static management routes before the parameterised show route. This
+// prevents /books/create from being treated as the {book} value for show().
 Route::middleware('manage-books')->group(function () {
     Route::resource('books', BookController::class)
         ->only(['create', 'store', 'edit', 'update', 'destroy']);
 });
+
+// Students may still browse and view books.
+Route::resource('books', BookController::class)
+    ->only(['index', 'show']);
 
     /*
     |--------------------------------------------------------------------------

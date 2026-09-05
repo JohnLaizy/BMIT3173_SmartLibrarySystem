@@ -112,18 +112,18 @@
         </div>
 
         {{-- Add Book --}}
-        <div class="flex flex-wrap gap-3">
-
-            <flux:button
-                :href="route('books.create')"
-                variant="primary"
-                icon="plus"
-                wire:navigate
-            >
-                New Book
-            </flux:button>
-
-        </div>
+        @if (auth()->user()?->isLibrarian())
+            <div class="flex flex-wrap gap-3">
+                <flux:button
+                    :href="route('books.create')"
+                    variant="primary"
+                    icon="plus"
+                    wire:navigate
+                >
+                    New Book
+                </flux:button>
+            </div>
+        @endif
     </header>
 
 
@@ -299,7 +299,7 @@
                     Add your first book to start managing
                     the library collection.
                 </p>
-                @if (auth()->user()?->canManageBooks())
+                @if (auth()->user()?->isLibrarian())
                 <flux:button
                     :href="route('books.create')"
                     variant="primary"
@@ -372,9 +372,11 @@
                                 Availability
                             </th>
 
-                            <th class="px-6 py-4 text-right">
-                                Actions
-                            </th>
+                            @if (auth()->user()?->isLibrarian())
+                                <th class="px-6 py-4 text-right">
+                                    Actions
+                                </th>
+                            @endif
 
                             @if (auth()->user()->isLibrarian())
                                 <th class="px-4 py-4 text-center">
@@ -532,16 +534,25 @@
                                 
                             
 
-                                @if (auth()->user()?->canManageBooks())
-                                <td class="px-6 py-5 text-right">
-                                    <form action="{{ route('books.destroy', $book->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this book?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
-                                            Delete
-                                        </button>
-                                    </form>
-                                </td>
+                                @if (auth()->user()?->isLibrarian())
+                                    <td class="px-6 py-5 text-right">
+                                        <div class="flex justify-end gap-3">
+                                            <a
+                                                href="{{ route('books.edit', $book) }}"
+                                                class="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                            >
+                                                Edit
+                                            </a>
+
+                                            <form action="{{ route('books.destroy', $book) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this book?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
                                 @endif
                         
 

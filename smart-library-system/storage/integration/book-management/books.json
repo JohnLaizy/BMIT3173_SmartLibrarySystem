@@ -5,7 +5,7 @@
         "author": "Demo Author",
         "type": "PHYSICAL",
         "total_copies": 6,
-        "available_copies": 4,
+        "available_copies": 2,
         "borrowable": true
     },
     {
