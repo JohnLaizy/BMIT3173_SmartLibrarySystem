@@ -26,5 +26,12 @@
         "email": "yzseen@test.com",
         "account_status": "ACTIVE",
         "borrowing_allowed": true
+    },
+    {
+    "user_id": "8",
+    "name": "Tan Yi Ann",
+    "email": "yiann2808@gmail.com",
+    "account_status": "ACTIVE",
+    "borrowing_allowed": true
     }
 ]
