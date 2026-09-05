@@ -151,4 +151,5 @@ class User extends Authenticatable
             'created_by'
         );
     }
+
 }

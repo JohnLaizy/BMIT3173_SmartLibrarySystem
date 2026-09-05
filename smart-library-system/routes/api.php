@@ -5,8 +5,10 @@ use App\Http\Controllers\BookController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\RoomAvailabilityApiController;
 use App\Http\Controllers\RoomReservationApiController;
+use App\Http\Controllers\BorrowingController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
 
 
 /*
@@ -68,9 +70,14 @@ Route::prefix('v1')->group(function () {
     );
 
     Route::get(
-        '/books/{id}',
+        '/books/{book}',
         [BookController::class, 'show']
     );
+
+    Route::get(
+        '/borrowings/active-counts',
+        [BorrowingController::class, 'getActiveCounts']
+    )->name('api.borrowings.active-counts');
 
 
     /*
@@ -103,7 +110,7 @@ Route::prefix('v1')->group(function () {
     )->name('api.room-reservations.index');
 
 
-    /*
+   /*
     |--------------------------------------------------------------------------
     | Protected APIs
     |--------------------------------------------------------------------------
@@ -112,11 +119,30 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')
         ->group(function () {
 
-            Route::post(
-                '/books',
-                [BookController::class, 'store']
-            );
+           
+            Route::middleware('admin')->group(function () {
+                
+    
+                Route::post(
+                    '/books',
+                    [BookController::class, 'store']
+                );
+
+         
+                Route::put(
+                    '/books/{book}',
+                    [BookController::class, 'update']
+                );
+
+             
+                Route::delete(
+                    '/books/{book}',
+                    [BookController::class, 'destroy']
+                );
+
+            });
 
         });
+
 
 });

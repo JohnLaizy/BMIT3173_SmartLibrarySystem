@@ -361,11 +361,16 @@ Route::middleware([
     | Book Management
     |--------------------------------------------------------------------------
     */
+// Register static management routes before the parameterised show route. This
+// prevents /books/create from being treated as the {book} value for show().
+Route::middleware('manage-books')->group(function () {
+    Route::resource('books', BookController::class)
+        ->only(['create', 'store', 'edit', 'update', 'destroy']);
+});
 
-    Route::resource(
-        'books',
-        BookController::class
-    );
+// Students may still browse and view books.
+Route::resource('books', BookController::class)
+    ->only(['index', 'show']);
 
     /*
     |--------------------------------------------------------------------------
