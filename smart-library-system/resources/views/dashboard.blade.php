@@ -67,7 +67,7 @@
 
         $upcomingReservationCount = $upcomingReservations->count();
     @endphp
-
+    
     <div
         data-page-transition
         class="mx-auto flex w-full max-w-7xl flex-1

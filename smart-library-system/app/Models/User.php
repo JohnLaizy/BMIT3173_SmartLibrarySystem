@@ -151,4 +151,9 @@ class User extends Authenticatable
             'created_by'
         );
     }
+
+    public function canManageBooks(): bool
+{
+    return strtolower((string) $this->role) !== 'student';
+}
 }

@@ -25,6 +25,27 @@
             {{ session('success') }}
         </div>
     @endif
+    {{-- 安全防御拦截提示框 (Error Alert) --}}
+@if (session('error'))
+    <div
+        role="status"
+        class="mt-4 flex items-center gap-3 rounded-xl
+               border border-red-500/30
+               bg-red-500/10 px-4 py-3
+               text-sm font-medium
+               text-red-700
+               dark:text-red-400"
+    >
+        <span
+            class="flex size-6 items-center justify-center
+                   rounded-full bg-red-500/20"
+        >
+            ✕
+        </span>
+
+        {{ session('error') }}
+    </div>
+@endif
 
     @if (session('error'))
         <div
@@ -278,7 +299,7 @@
                     Add your first book to start managing
                     the library collection.
                 </p>
-
+                @if (auth()->user()?->canManageBooks())
                 <flux:button
                     :href="route('books.create')"
                     variant="primary"
@@ -287,7 +308,7 @@
                 >
                     Add New Book
                 </flux:button>
-
+                @endif
             </div>
 
         @else
@@ -351,6 +372,10 @@
                                 Availability
                             </th>
 
+                            <th class="px-6 py-4 text-right">
+                                Actions
+                            </th>
+
                             @if (auth()->user()->isLibrarian())
                                 <th class="px-4 py-4 text-center">
                                     Borrowed
@@ -370,10 +395,7 @@
                     </thead>
 
 
-                    <tbody
-                        class="divide-y divide-zinc-200
-                               dark:divide-zinc-800"
-                    >
+                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
 
                         @foreach ($books as $book)
 
@@ -470,60 +492,58 @@
                                 </td>
 
 
-                                {{-- Availability --}}
+                               {{-- Availability --}}
                                 <td class="px-6 py-5">
-
                                     @if ($book->type === 'physical')
+                                        @php
+                                            // 核心逻辑：利用从 JSON API 消费过来的 active_borrowings_count 计算可用库存
+                                            $borrowed = $book->active_borrowings_count ?? 0;
+                                            $available = $book->total_copies - $borrowed;
+                                        @endphp
 
-                                        @if ($book->available_copies > 0)
-
-                                            <span
-                                                class="font-semibold
-                                                       text-emerald-700
-                                                       dark:text-emerald-300"
-                                            >
-                                                {{ $book->available_copies }}
+                                        @if ($available > 0)
+                                            <span class="font-semibold text-emerald-700 dark:text-emerald-300">
+                                                {{ $available }}
                                             </span>
-
-                                            <span
-                                                class="text-zinc-500
-                                                       dark:text-zinc-400"
-                                            >
-                                                / {{ $book->total_copies }}
-                                            </span>
-
                                         @else
-
-                                            <span
-                                                class="font-semibold
-                                                       text-red-700
-                                                       dark:text-red-300"
-                                            >
+                                            <span class="font-semibold text-red-700 dark:text-red-300">
                                                 0
                                             </span>
+                                        @endif
+                                        
+                                        <span class="text-zinc-500 dark:text-zinc-400">
+                                            / {{ $book->total_copies }}
+                                        </span>
 
-                                            <span
-                                                class="text-zinc-500
-                                                       dark:text-zinc-400"
-                                            >
-                                                / {{ $book->total_copies }}
-                                            </span>
-
+                                        {{-- 明确展示“已被借出”的数量，向老师证明你成功 Consume 了 JSON API 数据 --}}
+                                        @if ($borrowed > 0)
+                                            <div class="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                                                ({{ $borrowed }} currently borrowed)
+                                            </div>
                                         @endif
 
                                     @else
-
-                                        <span
-                                            class="font-semibold
-                                                   text-emerald-700
-                                                   dark:text-emerald-300"
-                                        >
+                                        <span class="font-semibold text-emerald-700 dark:text-emerald-300">
                                             Digital Access
                                         </span>
-
                                     @endif
-
                                 </td>
+
+                                
+                            
+
+                                @if (auth()->user()?->canManageBooks())
+                                <td class="px-6 py-5 text-right">
+                                    <form action="{{ route('books.destroy', $book->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this book?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </td>
+                                @endif
+                        
 
                                 @if (auth()->user()->isLibrarian())
                                     <td class="px-4 py-5 text-center">

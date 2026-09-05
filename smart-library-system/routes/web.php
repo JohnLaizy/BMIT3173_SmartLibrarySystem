@@ -361,11 +361,15 @@ Route::middleware([
     | Book Management
     |--------------------------------------------------------------------------
     */
+// All logged-in users, including students, can browse books.
+Route::resource('books', BookController::class)
+    ->only(['index', 'show']);
 
-    Route::resource(
-        'books',
-        BookController::class
-    );
+// Only non-students can create, edit, update, or delete books.
+Route::middleware('manage-books')->group(function () {
+    Route::resource('books', BookController::class)
+        ->only(['create', 'store', 'edit', 'update', 'destroy']);
+});
 
     /*
     |--------------------------------------------------------------------------

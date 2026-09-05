@@ -162,6 +162,15 @@
                     @endif
                 @endif
 
+                
+                @if (auth()->user()->isLibrarian())
+    
+                    <flux:navlist.item icon="book-open-text" href="{{ route('books.index') }}">
+                        Book Management
+                    </flux:navlist.item>
+
+                @endif
+
             </flux:sidebar.group>
         </flux:sidebar.nav>
 

@@ -22,6 +22,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ]);
 })
 
+->withMiddleware(function ($middleware): void {
+    $middleware->alias([
+        'manage-books' => \App\Http\Middleware\EnsureCanManageBooks::class,
+    ]);
+})
+
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) =>

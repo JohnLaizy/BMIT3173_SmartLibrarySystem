@@ -383,4 +383,20 @@ class BorrowingController extends Controller
             'Extension request rejected.'
         );
     }
+
+   
+    public function getActiveCounts()
+    {
+       
+        $counts = \App\Models\Borrowing::whereNull('returned_at')
+            ->selectRaw('book_id, count(*) as active_count')
+            ->groupBy('book_id')
+            ->pluck('active_count', 'book_id'); 
+
+        
+        return response()->json([
+            'success' => true,
+            'data' => $counts
+        ]);
+    }
 }
