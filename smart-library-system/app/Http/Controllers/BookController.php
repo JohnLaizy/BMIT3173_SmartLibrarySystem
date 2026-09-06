@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\BorrowReturnApiException;
 use App\Http\Requests\StoreBookRequest;
 use App\Models\Book;
 use App\Services\BorrowingService;
-use App\Services\BorrowReturnApiService;
 use App\Services\DigitalBookFactory;
 use App\Services\PhysicalBookFactory;
 use Illuminate\Http\JsonResponse;
@@ -18,12 +16,12 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
+use App\Models\Borrowing;
 
 class BookController extends Controller
 {
     public function __construct(
         private readonly BorrowingService $borrowingService,
-        private readonly BorrowReturnApiService $borrowReturnApi,
     ) {}
 
     // web and api respomse
@@ -76,25 +74,21 @@ class BookController extends Controller
             // 5 books per page
             $books = $query->latest()->paginate(5)->withQueryString();
 
-            try {
-                $activeCounts = $this->borrowReturnApi->activeBorrowingCounts(
-                    $books->getCollection()->pluck('id')->all()
+            $bookIds = $books->getCollection()->pluck('id')->all();
+
+            $activeCounts = Borrowing::query()
+                ->whereNull('returned_at')
+                ->whereIn('book_id', $bookIds)
+                ->selectRaw('book_id, count(*) as active_count')
+                ->groupBy('book_id')
+                ->pluck('active_count', 'book_id');
+
+            foreach ($books as $book) {
+                $book->active_borrowings_count = (int) (
+                    $activeCounts[$book->id] ?? 0
                 );
 
-                foreach ($books as $book) {
-                    $book->active_borrowings_count = (int) ($activeCounts[$book->id] ?? 0);
-                    $book->availability_unavailable = false;
-                }
-            } catch (BorrowReturnApiException $apiException) {
-                Log::warning('Borrow & Return API request failed.', [
-                    'event' => 'BORROW_RETURN_API_FAILURE',
-                    'error_message' => $apiException->getMessage(),
-                ]);
-
-                foreach ($books as $book) {
-                    $book->active_borrowings_count = 0;
-                    $book->availability_unavailable = true;
-                }
+                $book->availability_unavailable = false;
             }
 
             // Web Service API
