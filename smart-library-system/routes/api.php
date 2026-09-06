@@ -26,10 +26,7 @@ Route::get('/user', function (Request $request) {
 
 Route::get(
     '/bookings/availability',
-    [
-        BookingController::class,
-        'apiAvailability',
-    ]
+    [BookingController::class, 'apiAvailability']
 )->name('api.bookings.availability');
 
 /*
@@ -39,59 +36,86 @@ Route::get(
 */
 
 Route::prefix('v1')->group(function () {
-
     /*
     |--------------------------------------------------------------------------
     | Public Book APIs
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/books', [BookController::class, 'index'])->name('api.books.index');
-    Route::get('/books/{book}', [BookController::class, 'show'])->name('api.books.show');
+    Route::get('/books', [BookController::class, 'index'])
+        ->name('api.books.index');
+
+    Route::get('/books/{book}', [BookController::class, 'show'])
+        ->name('api.books.show');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Public Borrow & Return APIs
+    |--------------------------------------------------------------------------
+    */
 
     Route::get(
         '/borrowings/active-counts',
         [BorrowingController::class, 'getActiveCounts']
     )->name('api.borrowings.active-counts');
 
+    // No token: reads the Book Management JSON API.
+    Route::get(
+        '/borrowings/books',
+        [BorrowingController::class, 'apiBookCatalog']
+    )->name('api.borrowings.books');
+
     /*
     |--------------------------------------------------------------------------
-    | Room Availability API
+    | Protected Borrow & Return APIs
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware('auth:sanctum')
+        ->prefix('borrowings')
+        ->group(function () {
+            Route::get('/', [BorrowingController::class, 'apiIndex'])
+                ->name('api.borrowings.index');
+
+            Route::post('/', [BorrowingController::class, 'apiStore'])
+                ->name('api.borrowings.store');
+
+            Route::patch(
+                '/{borrowing}/return',
+                [BorrowingController::class, 'apiReturn']
+            )->name('api.borrowings.return');
+        });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Room APIs
     |--------------------------------------------------------------------------
     */
 
     Route::get(
         '/rooms/availability',
-        [
-            RoomAvailabilityApiController::class,
-            'index',
-        ]
+        [RoomAvailabilityApiController::class, 'index']
     )->name('api.rooms.availability');
-
-    /*
-    |--------------------------------------------------------------------------
-    | Room Reservation Information API
-    |--------------------------------------------------------------------------
-    */
 
     Route::get(
         '/room-reservations',
-        [
-            RoomReservationApiController::class,
-            'index',
-        ]
+        [RoomReservationApiController::class, 'index']
     )->name('api.room-reservations.index');
 
     /*
-     |--------------------------------------------------------------------------
-     | Protected APIs
-     |--------------------------------------------------------------------------
-     */
+    |--------------------------------------------------------------------------
+    | Protected Book Management APIs
+    |--------------------------------------------------------------------------
+    */
 
     Route::middleware(['auth:sanctum', 'manage-books'])->group(function () {
-        Route::post('/books', [BookController::class, 'store'])->name('api.books.store');
-        Route::match(['put', 'patch'], '/books/{book}', [BookController::class, 'update'])->name('api.books.update');
-        Route::delete('/books/{book}', [BookController::class, 'destroy'])->name('api.books.destroy');
-    });
+        Route::post('/books', [BookController::class, 'store'])
+            ->name('api.books.store');
 
+        Route::match(['put', 'patch'], '/books/{book}', [BookController::class, 'update'])
+            ->name('api.books.update');
+
+        Route::delete('/books/{book}', [BookController::class, 'destroy'])
+            ->name('api.books.destroy');
+    });
 });
