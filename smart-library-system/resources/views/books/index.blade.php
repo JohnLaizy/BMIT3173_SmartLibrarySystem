@@ -25,7 +25,7 @@
             {{ session('success') }}
         </div>
     @endif
-    {{-- 安全防御拦截提示框 (Error Alert) --}}
+    
 @if (session('error'))
     <div
         role="status"
@@ -75,7 +75,7 @@
         </div>
     @enderror
 
-    {{-- 页面标题 --}}
+    {{-- Title --}}
     <header
         class="flex flex-col gap-4
                sm:flex-row sm:items-end sm:justify-between"
@@ -127,7 +127,7 @@
     </header>
 
 
-    {{-- 搜索 --}}
+    {{-- search --}}
     <section
         class="relative z-20 overflow-visible rounded-2xl
                border border-zinc-200 bg-white shadow-sm
@@ -275,7 +275,7 @@
 
             <div class="px-6 py-16 text-center">
 
-                <div
+                <!-- <div
                     class="mx-auto flex size-14 items-center
                            justify-center rounded-2xl
                            bg-blue-500/10 text-2xl
@@ -283,7 +283,7 @@
                     aria-hidden="true"
                 >
                     📚
-                </div>
+                </div> -->
 
                 <h3
                     class="mt-4 font-bold
