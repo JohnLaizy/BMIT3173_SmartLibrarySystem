@@ -14,7 +14,10 @@ class BorrowReturnApiService
      */
     public function activeBorrowingCounts(array $bookIds): array
     {
-        $bookIds = array_values(array_unique(array_map('intval', $bookIds)));
+        $bookIds = array_values(array_unique(array_filter(
+            array_map('intval', $bookIds),
+            fn (int $bookId): bool => $bookId > 0
+        )));
 
         if ($bookIds === []) {
             return [];

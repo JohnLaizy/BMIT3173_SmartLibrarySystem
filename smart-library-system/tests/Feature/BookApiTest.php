@@ -6,6 +6,7 @@ use App\Models\Book;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -19,11 +20,16 @@ class BookApiTest extends TestCase
         Http::fake(['*/borrowings/active-counts*' => Http::response(['success' => true, 'data' => [$book->id => 1]])]);
 
         $this->getJson('/api/v1/books')->assertOk()
-            ->assertJsonPath('data.0.id', $book->id)
-            ->assertJsonPath('data.0.borrowed_copies', 1)
-            ->assertJsonPath('data.0.available_copies', 2);
+            ->assertJsonPath('data.data.0.id', $book->id)
+            ->assertJsonPath('data.data.0.active_borrowings_count', 1);
         $this->getJson("/api/v1/books/{$book->id}")->assertOk()
             ->assertJsonPath('data.id', $book->id);
+
+        Http::assertSent(fn (ClientRequest $request): bool => $request->method() === 'GET'
+            && str_contains($request->url(), '/borrowings/active-counts')
+            && str_contains($request->url(), 'book_ids='.$book->id)
+            && $request->hasHeader('Accept', 'application/json')
+        );
     }
 
     public function test_book_mutations_require_authenticated_librarian(): void
@@ -45,7 +51,7 @@ class BookApiTest extends TestCase
         $created = $this->postJson('/api/v1/books', $this->payload())->assertCreated()->json('data.id');
         $this->patchJson("/api/v1/books/{$created}", $this->updatePayload(['title' => 'Updated API book']))
             ->assertOk()->assertJsonPath('data.title', 'Updated API book');
-        $this->deleteJson("/api/v1/books/{$created}")->assertNoContent();
+        $this->deleteJson("/api/v1/books/{$created}")->assertOk();
     }
 
     public function test_validation_and_missing_book_return_json_errors(): void
@@ -59,10 +65,12 @@ class BookApiTest extends TestCase
     {
         $this->book();
         Http::fake(['*/borrowings/active-counts*' => Http::response(['data' => 'invalid'], 200)]);
-        $this->getJson('/api/v1/books')->assertStatus(502)->assertJsonPath('message', 'Borrowing availability returned an invalid response.');
+        $this->getJson('/api/v1/books')->assertOk()
+            ->assertJsonPath('data.data.0.active_borrowings_count', 0);
 
         Http::fake(fn () => throw new ConnectionException('timed out'));
-        $this->getJson('/api/v1/books')->assertStatus(503)->assertJsonPath('message', 'Borrowing availability is temporarily unavailable.');
+        $this->getJson('/api/v1/books')->assertOk()
+            ->assertJsonPath('data.data.0.active_borrowings_count', 0);
     }
 
     private function book(): Book

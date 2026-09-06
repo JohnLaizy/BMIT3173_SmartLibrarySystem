@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\BookManagementApiException;
 use App\Exceptions\BorrowingRuleViolation;
 use App\Http\Requests\BorrowBookRequest;
 use App\Http\Requests\RejectBorrowingRenewalRequest;
@@ -9,9 +10,11 @@ use App\Http\Requests\SubmitOverduePaymentRequest;
 use App\Models\Book;
 use App\Models\Borrowing;
 use App\Models\User;
+use App\Services\BookManagementApiClient;
 use App\Services\BorrowingService;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -19,9 +22,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
-use App\Exceptions\BookManagementApiException;
-use App\Services\BookManagementApiClient;
-use Illuminate\Http\JsonResponse;
 
 class BorrowingController extends Controller
 {
@@ -416,8 +416,7 @@ class BorrowingController extends Controller
             'data' => $borrowings
                 ->getCollection()
                 ->map(
-                    fn (Borrowing $borrowing): array =>
-                        $this->borrowingPayload($borrowing)
+                    fn (Borrowing $borrowing): array => $this->borrowingPayload($borrowing)
                 )
                 ->values(),
             'meta' => [
@@ -539,8 +538,7 @@ class BorrowingController extends Controller
                 ?->toIso8601String(),
             'returned_at' => $borrowing->returned_at
                 ?->toIso8601String(),
-            'overdue_fee_cents' =>
-                $borrowing->overdue_fee_cents,
+            'overdue_fee_cents' => $borrowing->overdue_fee_cents,
             'book' => [
                 'id' => $borrowing->book?->id,
                 'title' => $borrowing->book?->title,
@@ -552,15 +550,20 @@ class BorrowingController extends Controller
 
     public function getActiveCounts(Request $request)
     {
+        $bookIdsWereRequested = $request->has('book_ids');
+
         $bookIds = collect(explode(',', (string) $request->query('book_ids', '')))
-            ->filter(fn (string $id): bool => ctype_digit($id))
+            ->filter(
+                fn (string $id): bool => ctype_digit($id)
+                    && (int) $id > 0
+            )
             ->map(fn (string $id): int => (int) $id)
             ->unique()
             ->values();
 
         $counts = Borrowing::whereNull('returned_at')
             ->when(
-                $bookIds->isNotEmpty(),
+                $bookIdsWereRequested,
                 fn ($query) => $query->whereIn('book_id', $bookIds->all())
             )
             ->selectRaw('book_id, count(*) as active_count')

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Contracts\BookManagementPort;
 use App\Models\Book;
 use App\Models\BookReservation;
 use App\Models\User;
@@ -12,39 +11,6 @@ use Tests\TestCase;
 class BookReservationTest extends TestCase
 {
     use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->app->instance(BookManagementPort::class, new class implements BookManagementPort
-        {
-            public function getBook(string $bookId): ?array
-            {
-                $book = Book::query()->find($bookId);
-
-                if (! $book instanceof Book) {
-                    return null;
-                }
-
-                return [
-                    'book_id' => (string) $book->id,
-                    'borrowable' => $book->isPhysical(),
-                    'available_copies' => $book->available_copies,
-                ];
-            }
-
-            public function markBorrowed(string $bookId, string $borrowingId, string $userId): bool
-            {
-                return true;
-            }
-
-            public function markReturned(string $bookId, string $borrowingId): bool
-            {
-                return true;
-            }
-        });
-    }
 
     public function test_student_can_request_book_reservation(): void
     {
