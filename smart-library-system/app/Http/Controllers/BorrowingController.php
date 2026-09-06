@@ -19,6 +19,9 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
+use App\Exceptions\BookManagementApiException;
+use App\Services\BookManagementApiClient;
+use Illuminate\Http\JsonResponse;
 
 class BorrowingController extends Controller
 {
@@ -382,6 +385,169 @@ class BorrowingController extends Controller
             ),
             'Extension request rejected.'
         );
+    }
+
+    public function apiIndex(Request $request): JsonResponse
+    {
+        $user = $this->authenticatedUser($request);
+
+        Gate::authorize(
+            'viewAny',
+            Borrowing::class
+        );
+
+        $perPage = min(
+            max($request->integer('per_page', 15), 1),
+            50
+        );
+
+        $query = Borrowing::query()
+            ->with('book')
+            ->latest('borrowed_at');
+
+        if ($user->isStudent()) {
+            $query->where('user_id', $user->id);
+        }
+
+        $borrowings = $query->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => $borrowings
+                ->getCollection()
+                ->map(
+                    fn (Borrowing $borrowing): array =>
+                        $this->borrowingPayload($borrowing)
+                )
+                ->values(),
+            'meta' => [
+                'current_page' => $borrowings->currentPage(),
+                'last_page' => $borrowings->lastPage(),
+                'per_page' => $borrowings->perPage(),
+                'total' => $borrowings->total(),
+            ],
+        ]);
+    }
+
+    public function apiStore(
+        BorrowBookRequest $request,
+        BorrowingService $service
+    ): JsonResponse {
+        $user = $this->authenticatedUser($request);
+
+        Gate::authorize(
+            'create',
+            Borrowing::class
+        );
+
+        $validated = $request->validated();
+
+        $book = Book::query()->findOrFail(
+            (int) $validated['book_id']
+        );
+
+        try {
+            $borrowing = $service->borrow($user, $book);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Book borrowed successfully.',
+                'data' => $this->borrowingPayload(
+                    $borrowing->load('book')
+                ),
+            ], 201);
+        } catch (BorrowingRuleViolation $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function apiReturn(
+        Request $request,
+        Borrowing $borrowing,
+        BorrowingService $service
+    ): JsonResponse {
+        $user = $this->authenticatedUser($request);
+
+        Gate::authorize(
+            'returnCopy',
+            $borrowing
+        );
+
+        try {
+            $returnedBorrowing = $service->returnCopy(
+                $user,
+                $borrowing
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Book returned successfully.',
+                'data' => $this->borrowingPayload(
+                    $returnedBorrowing->load('book')
+                ),
+            ]);
+        } catch (BorrowingRuleViolation $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function apiBookCatalog(
+        Request $request,
+        BookManagementApiClient $bookManagement
+    ): JsonResponse {
+        $validated = $request->validate([
+            'search' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+        ]);
+
+        try {
+            return response()->json([
+                'success' => true,
+                'data' => $bookManagement->searchBooks(
+                    trim(
+                        (string) ($validated['search'] ?? '')
+                    )
+                ),
+            ]);
+        } catch (BookManagementApiException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], $exception->status);
+        }
+    }
+
+    private function borrowingPayload(
+        Borrowing $borrowing
+    ): array {
+        return [
+            'id' => $borrowing->id,
+            'book_id' => $borrowing->book_id,
+            'status' => $borrowing->status,
+            'borrowed_at' => $borrowing->borrowed_at
+                ?->toIso8601String(),
+            'due_at' => $borrowing->due_at
+                ?->toIso8601String(),
+            'returned_at' => $borrowing->returned_at
+                ?->toIso8601String(),
+            'overdue_fee_cents' =>
+                $borrowing->overdue_fee_cents,
+            'book' => [
+                'id' => $borrowing->book?->id,
+                'title' => $borrowing->book?->title,
+                'author' => $borrowing->book?->author,
+                'isbn' => $borrowing->book?->isbn,
+            ],
+        ];
     }
 
     public function getActiveCounts(Request $request)
