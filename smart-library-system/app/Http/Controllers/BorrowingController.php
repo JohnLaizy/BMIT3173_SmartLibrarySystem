@@ -22,10 +22,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
-<<<<<<< Updated upstream
-=======
-use Illuminate\Http\JsonResponse;
->>>>>>> Stashed changes
 
 class BorrowingController extends Controller
 {
