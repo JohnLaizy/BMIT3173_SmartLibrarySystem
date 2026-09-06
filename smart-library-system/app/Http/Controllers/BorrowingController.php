@@ -22,6 +22,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
+<<<<<<< Updated upstream
+=======
+use Illuminate\Http\JsonResponse;
+>>>>>>> Stashed changes
 
 class BorrowingController extends Controller
 {
@@ -496,33 +500,47 @@ class BorrowingController extends Controller
         }
     }
 
-    public function apiBookCatalog(
-        Request $request,
-        BookManagementApiClient $bookManagement
-    ): JsonResponse {
+    public function apiBookCatalog(Request $request): JsonResponse
+    {
         $validated = $request->validate([
-            'search' => [
-                'nullable',
-                'string',
-                'max:100',
-            ],
+            'search' => ['nullable', 'string', 'max:100'],
         ]);
 
-        try {
-            return response()->json([
-                'success' => true,
-                'data' => $bookManagement->searchBooks(
-                    trim(
-                        (string) ($validated['search'] ?? '')
-                    )
-                ),
-            ]);
-        } catch (BookManagementApiException $exception) {
-            return response()->json([
-                'success' => false,
-                'message' => $exception->getMessage(),
-            ], $exception->status);
-        }
+        $search = trim((string) ($validated['search'] ?? ''));
+
+        $books = Book::query()
+            ->when($search !== '', function ($query) use ($search): void {
+                $like = '%'.$search.'%';
+
+                $query->where(function ($searchQuery) use ($like): void {
+                    $searchQuery
+                        ->where('title', 'like', $like)
+                        ->orWhere('author', 'like', $like)
+                        ->orWhere('isbn', 'like', $like)
+                        ->orWhere('category', 'like', $like);
+                });
+            })
+            ->orderBy('title')
+            ->limit(50)
+            ->get()
+            ->map(fn (Book $book): array => [
+                'id' => $book->id,
+                'title' => $book->title,
+                'author' => $book->author,
+                'isbn' => $book->isbn,
+                'category' => $book->category,
+                'type' => $book->type,
+                'total_copies' => $book->total_copies,
+                'available_copies' => $book->available_copies,
+                'borrowable' => $book->type === 'physical'
+                     && $book->available_copies > 0,
+            ])
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $books,
+        ]);
     }
 
     private function borrowingPayload(
