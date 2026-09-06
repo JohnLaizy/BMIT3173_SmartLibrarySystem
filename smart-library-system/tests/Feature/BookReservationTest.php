@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\BookManagementPort;
 use App\Models\Book;
 use App\Models\BookReservation;
 use App\Models\User;
@@ -11,6 +12,39 @@ use Tests\TestCase;
 class BookReservationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->app->instance(BookManagementPort::class, new class implements BookManagementPort
+        {
+            public function getBook(string $bookId): ?array
+            {
+                $book = Book::query()->find($bookId);
+
+                if (! $book instanceof Book) {
+                    return null;
+                }
+
+                return [
+                    'book_id' => (string) $book->id,
+                    'borrowable' => $book->isPhysical(),
+                    'available_copies' => $book->available_copies,
+                ];
+            }
+
+            public function markBorrowed(string $bookId, string $borrowingId, string $userId): bool
+            {
+                return true;
+            }
+
+            public function markReturned(string $bookId, string $borrowingId): bool
+            {
+                return true;
+            }
+        });
+    }
 
     public function test_student_can_request_book_reservation(): void
     {
@@ -34,8 +68,7 @@ class BookReservationTest extends TestCase
             [
                 'user_id' => $student->id,
                 'book_id' => $book->id,
-                'status' =>
-                    BookReservation::STATUS_PENDING,
+                'status' => BookReservation::STATUS_PENDING,
             ]
         );
     }
@@ -51,8 +84,7 @@ class BookReservationTest extends TestCase
         BookReservation::query()->create([
             'user_id' => $student->id,
             'book_id' => $book->id,
-            'status' =>
-                BookReservation::STATUS_PENDING,
+            'status' => BookReservation::STATUS_PENDING,
             'requested_at' => now(),
         ]);
 
@@ -87,8 +119,7 @@ class BookReservationTest extends TestCase
             BookReservation::query()->create([
                 'user_id' => $student->id,
                 'book_id' => $book->id,
-                'status' =>
-                    BookReservation::STATUS_PENDING,
+                'status' => BookReservation::STATUS_PENDING,
                 'requested_at' => now(),
             ]);
 
@@ -132,8 +163,7 @@ class BookReservationTest extends TestCase
             BookReservation::query()->create([
                 'user_id' => $student->id,
                 'book_id' => $book->id,
-                'status' =>
-                    BookReservation::STATUS_PENDING,
+                'status' => BookReservation::STATUS_PENDING,
                 'requested_at' => now(),
             ]);
 
@@ -177,8 +207,7 @@ class BookReservationTest extends TestCase
             BookReservation::query()->create([
                 'user_id' => $student->id,
                 'book_id' => $book->id,
-                'status' =>
-                    BookReservation::STATUS_APPROVED,
+                'status' => BookReservation::STATUS_APPROVED,
                 'requested_at' => now()->subDay(),
                 'reviewed_at' => now(),
                 'reviewed_by' => $librarian->id,

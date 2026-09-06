@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\BorrowingRuleViolation;
 use App\Http\Requests\BorrowBookRequest;
+use App\Http\Requests\RejectBorrowingRenewalRequest;
 use App\Http\Requests\SubmitOverduePaymentRequest;
 use App\Models\Book;
 use App\Models\Borrowing;
@@ -18,7 +19,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
-use App\Http\Requests\RejectBorrowingRenewalRequest;
 
 class BorrowingController extends Controller
 {
@@ -384,19 +384,26 @@ class BorrowingController extends Controller
         );
     }
 
-   
-    public function getActiveCounts()
+    public function getActiveCounts(Request $request)
     {
-       
-        $counts = \App\Models\Borrowing::whereNull('returned_at')
+        $bookIds = collect(explode(',', (string) $request->query('book_ids', '')))
+            ->filter(fn (string $id): bool => ctype_digit($id))
+            ->map(fn (string $id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        $counts = Borrowing::whereNull('returned_at')
+            ->when(
+                $bookIds->isNotEmpty(),
+                fn ($query) => $query->whereIn('book_id', $bookIds->all())
+            )
             ->selectRaw('book_id, count(*) as active_count')
             ->groupBy('book_id')
-            ->pluck('active_count', 'book_id'); 
+            ->pluck('active_count', 'book_id');
 
-        
         return response()->json([
             'success' => true,
-            'data' => $counts
+            'data' => $counts,
         ]);
     }
 }

@@ -10,6 +10,72 @@ composer run dev
 
 # Smart Library System — Setup with GitHub Desktop
 
+## REST APIs: Book Management and Borrow & Return
+
+Book Management provides a versioned JSON API. Read endpoints are public catalogue endpoints; mutating endpoints require a Sanctum-authenticated librarian account.
+
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| GET | `/api/v1/books` | Public |
+| GET | `/api/v1/books/{book}` | Public |
+| POST | `/api/v1/books` | Authenticated librarian |
+| PUT/PATCH | `/api/v1/books/{book}` | Authenticated librarian |
+| DELETE | `/api/v1/books/{book}` | Authenticated librarian |
+
+Borrow & Return provides the availability endpoint consumed by Book Management:
+
+```text
+GET /api/v1/borrowings/active-counts?book_ids=1,2,3
+```
+
+Book Management calls this endpoint through Laravel's HTTP client. It does not query borrowing records or dispatch a Borrowing controller internally. A successful book response contains only catalogue data plus live availability, for example:
+
+```json
+{
+  "data": {
+    "id": 1,
+    "isbn": "9780132350884",
+    "title": "Clean Code",
+    "author": "Robert C. Martin",
+    "category": "Programming",
+    "type": "physical",
+    "total_copies": 3,
+    "borrowed_copies": 1,
+    "available_copies": 2
+  }
+}
+```
+
+Create, update, and delete requests must be made by an authenticated Sanctum session belonging to a librarian. The starter application's existing authentication flow supplies that session; unauthenticated requests receive `401` and students receive `403`.
+
+Example request body for creating a physical book:
+
+```bash
+{
+  "isbn": "9780132350884",
+  "title": "Clean Code",
+  "author": "Robert Martin",
+  "category": "Programming",
+  "type": "physical",
+  "total_copies": 3
+}
+```
+
+Set the Borrow & Return service address in `.env`. For this monolith's local development server it defaults to the local API; in a deployed split-module environment use the Borrow & Return service URL instead.
+
+```env
+BORROW_RETURN_API_URL="${APP_URL}/api/v1"
+BORROW_RETURN_API_TIMEOUT=3
+```
+
+Run API and integration checks with:
+
+```powershell
+php artisan migrate
+php artisan test --filter=BookApiTest
+php artisan test
+```
+
 # Preparing same environment
 ## 1. Install PHP
 

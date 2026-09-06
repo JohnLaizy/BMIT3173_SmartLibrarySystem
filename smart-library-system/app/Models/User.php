@@ -47,7 +47,6 @@ class User extends Authenticatable
 
     public const ROLE_LIBRARIAN = 'librarian';
 
-
     public const STATUS_ACTIVE = 'active';
 
     public const STATUS_INACTIVE = 'inactive';
@@ -80,7 +79,7 @@ class User extends Authenticatable
         $initials = Str::initials($this->name, true);
 
         return Str::length($initials) > 1
-            ? Str::substr($initials, 0, 1) . Str::substr($initials, -1)
+            ? Str::substr($initials, 0, 1).Str::substr($initials, -1)
             : $initials;
     }
 
@@ -100,7 +99,6 @@ class User extends Authenticatable
         return $this->account_status === self::STATUS_ACTIVE;
     }
 
-
     /**
      * 用户的借书记录。
      *
@@ -113,7 +111,7 @@ class User extends Authenticatable
         );
     }
 
-    //book Reservations
+    // book Reservations
     public function bookReservations(): HasMany
     {
         return $this->hasMany(
@@ -151,5 +149,4 @@ class User extends Authenticatable
             'created_by'
         );
     }
-
 }

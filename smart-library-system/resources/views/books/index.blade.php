@@ -496,7 +496,11 @@
 
                                {{-- Availability --}}
                                 <td class="px-6 py-5">
-                                    @if ($book->type === 'physical')
+                                    @if ($book->availability_unavailable ?? false)
+                                        <span class="font-semibold text-amber-700 dark:text-amber-300">
+                                            Unavailable
+                                        </span>
+                                    @elseif ($book->type === 'physical')
                                         @php
                                             // 核心逻辑：利用从 JSON API 消费过来的 active_borrowings_count 计算可用库存
                                             $borrowed = $book->active_borrowings_count ?? 0;

@@ -107,7 +107,7 @@ class BookController extends Controller
             }
 
             // Web Service API 
-            if ($request->wantsJson()) {
+            if ($request->is('api/*') || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
                     'data' => $books,
@@ -125,12 +125,12 @@ class BookController extends Controller
                 'user_id' => $request->user()?->id,
             ]);
 
-            if ($request->wantsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Internal server error. Unable to fetch books.',
-                ], Response::HTTP_INTERNAL_SERVER_ERROR);
-            }
+            if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal server error. Unable to fetch books.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
 
             return back()->with('error', 'Unable to retrieve books list at the moment.');
         }
@@ -370,13 +370,13 @@ class BookController extends Controller
         // =========================================================================
         DB::beginTransaction();
         try {
-            // 【关键修改】在删除书本之前，先清除数据库里关联的历史借阅和预约记录，防止触发外键约束报错！
+
             $book->borrowings()->delete();
             if (method_exists($book, 'reservations')) {
                 $book->reservations()->delete();
             }
 
-            // 安全删除已上传的关联物理文件
+        
             if ($book->cover_image_path && Storage::disk('public')->exists($book->cover_image_path)) {
                 Storage::disk('public')->delete($book->cover_image_path);
             }
@@ -385,7 +385,7 @@ class BookController extends Controller
                 Storage::disk('local')->delete($book->file_path);
             }
 
-            // 最后删除书本本身
+     
             $book->delete();
 
             DB::commit();

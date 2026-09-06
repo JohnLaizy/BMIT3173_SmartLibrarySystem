@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'borrow_return' => [
+        'url' => env('BORROW_RETURN_API_URL', env('APP_URL').'/api/v1'),
+        'timeout' => env('BORROW_RETURN_API_TIMEOUT', 3),
+    ],
+
 ];
