@@ -41,10 +41,10 @@ class UserAccountService
 
         // Student still has an overdue book
         // that has not yet been resolved.
-        $hasOverdueBorrowing = Borrowing::query()
-            ->where('user_id', $user->id)
-            ->where('status', Borrowing::STATUS_OVERDUE)
-            ->exists();
+        $hasUnresolvedOverdue = Borrowing::query()
+        ->where('user_id', $user->id)
+        ->unresolvedOverdue()
+        ->exists();
 
         // Student has an unpaid or pending payment.
         $hasOutstandingPayment =
@@ -52,9 +52,9 @@ class UserAccountService
                 ->hasOutstandingPayment($user->id);
 
         $newStatus =
-            $hasOverdueBorrowing || $hasOutstandingPayment
-                ? User::STATUS_INACTIVE
-                : User::STATUS_ACTIVE;
+          $hasUnresolvedOverdue || $hasOutstandingPayment
+            ? User::STATUS_INACTIVE
+            : User::STATUS_ACTIVE;
 
         if ($user->account_status !== $newStatus) {
             $user->account_status = $newStatus;

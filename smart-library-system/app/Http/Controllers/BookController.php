@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\BorrowReturnApiException;
+use App\Services\BorrowReturnApiService;
 use App\Http\Requests\StoreBookRequest;
 use App\Models\Book;
 use App\Services\BorrowingService;
@@ -21,7 +23,8 @@ use App\Models\Borrowing;
 class BookController extends Controller
 {
     public function __construct(
-        private readonly BorrowingService $borrowingService,
+    private readonly BorrowingService $borrowingService,
+    private readonly BorrowReturnApiService $borrowReturnApi,
     ) {}
 
     // web and api respomse
@@ -76,20 +79,33 @@ class BookController extends Controller
 
             $bookIds = $books->getCollection()->pluck('id')->all();
 
-            $activeCounts = Borrowing::query()
-                ->whereNull('returned_at')
-                ->whereIn('book_id', $bookIds)
-                ->selectRaw('book_id, count(*) as active_count')
-                ->groupBy('book_id')
-                ->pluck('active_count', 'book_id');
+           try {
+    $activeCounts =
+        $this->borrowReturnApi
+            ->activeBorrowingCounts($bookIds);
 
-            foreach ($books as $book) {
-                $book->active_borrowings_count = (int) (
-                    $activeCounts[$book->id] ?? 0
-                );
+    $availabilityUnavailable = false;
 
-                $book->availability_unavailable = false;
-            }
+} catch (BorrowReturnApiException $exception) {
+    Log::warning(
+        'Borrow & Return availability could not be retrieved.',
+        [
+            'error_message' => $exception->getMessage(),
+        ]
+    );
+
+    $activeCounts = [];
+    $availabilityUnavailable = true;
+}
+
+foreach ($books as $book) {
+    $book->active_borrowings_count = (int) (
+        $activeCounts[$book->id] ?? 0
+    );
+
+    $book->availability_unavailable =
+        $availabilityUnavailable;
+}
 
             // Web Service API
             if ($request->is('api/*') || $request->wantsJson()) {
