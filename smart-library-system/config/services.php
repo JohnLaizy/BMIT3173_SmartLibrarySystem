@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'borrow_return' => [
+        'url' => env('BORROW_RETURN_API_URL', env('APP_URL').'/api/v1'),
+        'timeout' => env('BORROW_RETURN_API_TIMEOUT', 3),
+    ],
+
+    'book_management' => [
+        'url' => env('BOOK_MANAGEMENT_API_URL'),
+        'token' => env('BOOK_MANAGEMENT_API_TOKEN'),
+        'timeout' => env('BOOK_MANAGEMENT_API_TIMEOUT', 3),
+    ],
 ];

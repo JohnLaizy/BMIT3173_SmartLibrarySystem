@@ -12,13 +12,11 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Contracts\UserManagementPort;
-use App\Contracts\BookManagementPort;
 
 class BorrowingService
 {
     public function __construct(
-        private UserManagementPort $userManagement,
-        private BookManagementPort $bookManagement
+        private UserManagementPort $userManagement
     ) {
 
     }
@@ -63,34 +61,6 @@ class BorrowingService
             );
         }
 
-        //book validation through book management integration
-        $bookData = $this->bookManagement->getBook(
-            (string) $book->id
-        );
-
-        if ($bookData === null) {
-            throw BorrowingRuleViolation::because(
-                'The book could not be verified by Book Management.'
-            );
-        }
-
-        if (
-            ($bookData['borrowable'] ?? false)
-            !== true
-        ) {
-            throw BorrowingRuleViolation::because(
-                'Book Management does not allow this book to be borrowed.'
-            );
-        }
-
-        if (
-            (int) ($bookData['available_copies'] ?? 0)
-            <= 0
-        ) {
-            throw BorrowingRuleViolation::because(
-                'Book Management reports that no copy is currently available.'
-            );
-        }
 
         return DB::transaction(
             function () use (
@@ -244,20 +214,7 @@ class BorrowingService
 
                 $lockedBook->available_copies--;
 
-                $lockedBook->save();
-
-                $bookUpdated = $this->bookManagement
-                    ->markBorrowed(
-                        (string) $lockedBook->id,
-                        (string) $borrowing->id,
-                        (string) $lockedStudent->id
-                    );
-
-                if (! $bookUpdated) {
-                    throw BorrowingRuleViolation::because(
-                        'Book Management could not confirm the borrowed copy.'
-                    );
-                }                
+                $lockedBook->save();            
 
                 Log::info('Book copy borrowed.', [
                     'borrowing_id' => $borrowing->id,
@@ -341,18 +298,6 @@ class BorrowingService
                 );
 
                 $lockedBook->save();
-
-                $bookUpdated = $this->bookManagement
-                    ->markReturned(
-                        (string) $lockedBook->id,
-                        (string) $lockedBorrowing->id
-                    );
-
-                if (! $bookUpdated) {
-                    throw BorrowingRuleViolation::because(
-                        'Book Management could not confirm the returned copy.'
-                    );
-                }
 
                 Log::info('Book copy returned.', [
                     'borrowing_id' => $lockedBorrowing->id,

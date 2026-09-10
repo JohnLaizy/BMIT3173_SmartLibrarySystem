@@ -12,9 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use App\Contracts\UserManagementPort;
-use App\Contracts\BookManagementPort;
 use App\Integrations\UserManagement\JsonUserManagementAdapter;
-use App\Integrations\BookManagement\JsonBookManagementAdapter;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,11 +24,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             UserManagementPort::class,
             JsonUserManagementAdapter::class
-        );
-
-        $this->app->bind(
-            BookManagementPort::class,
-            JsonBookManagementAdapter::class
         );
     }
 

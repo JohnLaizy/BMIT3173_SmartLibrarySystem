@@ -5,11 +5,24 @@ namespace Tests\Feature;
 use App\Models\Book;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class BookManagementAuthorizationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Http::fake([
+            '*/borrowings/active-counts*' => Http::response([
+                'success' => true,
+                'data' => [],
+            ]),
+        ]);
+    }
 
     public function test_student_cannot_see_or_access_book_management_actions(): void
     {

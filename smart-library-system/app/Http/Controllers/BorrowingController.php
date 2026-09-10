@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\BookManagementApiException;
 use App\Exceptions\BorrowingRuleViolation;
 use App\Http\Requests\BorrowBookRequest;
+use App\Http\Requests\RejectBorrowingRenewalRequest;
 use App\Http\Requests\SubmitOverduePaymentRequest;
 use App\Models\Book;
 use App\Models\Borrowing;
 use App\Models\User;
+use App\Services\BookManagementApiClient;
 use App\Services\BorrowingService;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -18,7 +22,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
-use App\Http\Requests\RejectBorrowingRenewalRequest;
 
 class BorrowingController extends Controller
 {
@@ -384,17 +387,206 @@ class BorrowingController extends Controller
         );
     }
 
-    public function getActiveCounts()
+    public function apiIndex(Request $request): JsonResponse
     {
-         $counts = \App\Models\Borrowing::whereNull('returned_at')
+        $user = $this->authenticatedUser($request);
+
+        Gate::authorize(
+            'viewAny',
+            Borrowing::class
+        );
+
+        $perPage = min(
+            max($request->integer('per_page', 15), 1),
+            50
+        );
+
+        $query = Borrowing::query()
+            ->with('book')
+            ->latest('borrowed_at');
+
+        if ($user->isStudent()) {
+            $query->where('user_id', $user->id);
+        }
+
+        $borrowings = $query->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => $borrowings
+                ->getCollection()
+                ->map(
+                    fn (Borrowing $borrowing): array => $this->borrowingPayload($borrowing)
+                )
+                ->values(),
+            'meta' => [
+                'current_page' => $borrowings->currentPage(),
+                'last_page' => $borrowings->lastPage(),
+                'per_page' => $borrowings->perPage(),
+                'total' => $borrowings->total(),
+            ],
+        ]);
+    }
+
+    public function apiStore(
+        BorrowBookRequest $request,
+        BorrowingService $service
+    ): JsonResponse {
+        $user = $this->authenticatedUser($request);
+
+        Gate::authorize(
+            'create',
+            Borrowing::class
+        );
+
+        $validated = $request->validated();
+
+        $book = Book::query()->findOrFail(
+            (int) $validated['book_id']
+        );
+
+        try {
+            $borrowing = $service->borrow($user, $book);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Book borrowed successfully.',
+                'data' => $this->borrowingPayload(
+                    $borrowing->load('book')
+                ),
+            ], 201);
+        } catch (BorrowingRuleViolation $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function apiReturn(
+        Request $request,
+        Borrowing $borrowing,
+        BorrowingService $service
+    ): JsonResponse {
+        $user = $this->authenticatedUser($request);
+
+        Gate::authorize(
+            'returnCopy',
+            $borrowing
+        );
+
+        try {
+            $returnedBorrowing = $service->returnCopy(
+                $user,
+                $borrowing
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Book returned successfully.',
+                'data' => $this->borrowingPayload(
+                    $returnedBorrowing->load('book')
+                ),
+            ]);
+        } catch (BorrowingRuleViolation $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function apiBookCatalog(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $search = trim((string) ($validated['search'] ?? ''));
+
+        $books = Book::query()
+            ->when($search !== '', function ($query) use ($search): void {
+                $like = '%'.$search.'%';
+
+                $query->where(function ($searchQuery) use ($like): void {
+                    $searchQuery
+                        ->where('title', 'like', $like)
+                        ->orWhere('author', 'like', $like)
+                        ->orWhere('isbn', 'like', $like)
+                        ->orWhere('category', 'like', $like);
+                });
+            })
+            ->orderBy('title')
+            ->limit(50)
+            ->get()
+            ->map(fn (Book $book): array => [
+                'id' => $book->id,
+                'title' => $book->title,
+                'author' => $book->author,
+                'isbn' => $book->isbn,
+                'category' => $book->category,
+                'type' => $book->type,
+                'total_copies' => $book->total_copies,
+                'available_copies' => $book->available_copies,
+                'borrowable' => $book->type === 'physical'
+                     && $book->available_copies > 0,
+            ])
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $books,
+        ]);
+    }
+
+    private function borrowingPayload(
+        Borrowing $borrowing
+    ): array {
+        return [
+            'id' => $borrowing->id,
+            'book_id' => $borrowing->book_id,
+            'status' => $borrowing->status,
+            'borrowed_at' => $borrowing->borrowed_at
+                ?->toIso8601String(),
+            'due_at' => $borrowing->due_at
+                ?->toIso8601String(),
+            'returned_at' => $borrowing->returned_at
+                ?->toIso8601String(),
+            'overdue_fee_cents' => $borrowing->overdue_fee_cents,
+            'book' => [
+                'id' => $borrowing->book?->id,
+                'title' => $borrowing->book?->title,
+                'author' => $borrowing->book?->author,
+                'isbn' => $borrowing->book?->isbn,
+            ],
+        ];
+    }
+
+    public function getActiveCounts(Request $request)
+    {
+        $bookIdsWereRequested = $request->has('book_ids');
+
+        $bookIds = collect(explode(',', (string) $request->query('book_ids', '')))
+            ->filter(
+                fn (string $id): bool => ctype_digit($id)
+                    && (int) $id > 0
+            )
+            ->map(fn (string $id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        $counts = Borrowing::whereNull('returned_at')
+            ->when(
+                $bookIdsWereRequested,
+                fn ($query) => $query->whereIn('book_id', $bookIds->all())
+            )
             ->selectRaw('book_id, count(*) as active_count')
             ->groupBy('book_id')
             ->pluck('active_count', 'book_id');
 
         return response()->json([
-             'success' => true,
-             'data' => $counts
+            'success' => true,
+            'data' => $counts,
         ]);
     }
-
 }

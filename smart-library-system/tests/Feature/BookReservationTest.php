@@ -34,8 +34,7 @@ class BookReservationTest extends TestCase
             [
                 'user_id' => $student->id,
                 'book_id' => $book->id,
-                'status' =>
-                    BookReservation::STATUS_PENDING,
+                'status' => BookReservation::STATUS_PENDING,
             ]
         );
     }
@@ -51,8 +50,7 @@ class BookReservationTest extends TestCase
         BookReservation::query()->create([
             'user_id' => $student->id,
             'book_id' => $book->id,
-            'status' =>
-                BookReservation::STATUS_PENDING,
+            'status' => BookReservation::STATUS_PENDING,
             'requested_at' => now(),
         ]);
 
@@ -87,8 +85,7 @@ class BookReservationTest extends TestCase
             BookReservation::query()->create([
                 'user_id' => $student->id,
                 'book_id' => $book->id,
-                'status' =>
-                    BookReservation::STATUS_PENDING,
+                'status' => BookReservation::STATUS_PENDING,
                 'requested_at' => now(),
             ]);
 
@@ -132,8 +129,7 @@ class BookReservationTest extends TestCase
             BookReservation::query()->create([
                 'user_id' => $student->id,
                 'book_id' => $book->id,
-                'status' =>
-                    BookReservation::STATUS_PENDING,
+                'status' => BookReservation::STATUS_PENDING,
                 'requested_at' => now(),
             ]);
 
@@ -177,8 +173,7 @@ class BookReservationTest extends TestCase
             BookReservation::query()->create([
                 'user_id' => $student->id,
                 'book_id' => $book->id,
-                'status' =>
-                    BookReservation::STATUS_APPROVED,
+                'status' => BookReservation::STATUS_APPROVED,
                 'requested_at' => now()->subDay(),
                 'reviewed_at' => now(),
                 'reviewed_by' => $librarian->id,

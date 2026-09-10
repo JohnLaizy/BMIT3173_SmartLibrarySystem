@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreBookRequest;
 use App\Models\Book;
+use App\Services\BorrowingService;
 use App\Services\DigitalBookFactory;
 use App\Services\PhysicalBookFactory;
 use Illuminate\Http\JsonResponse;
@@ -12,28 +13,24 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Http;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
-use App\Services\BorrowingService;
+use App\Models\Borrowing;
 
 class BookController extends Controller
 {
     public function __construct(
-        private readonly BorrowingService $borrowingService
-    ) {
-    }
+        private readonly BorrowingService $borrowingService,
+    ) {}
 
-    
-    //web and api respomse
+    // web and api respomse
     public function index(Request $request): View|JsonResponse
     {
         try {
-            
+
             $query = Book::query();
 
-          
             $search = trim((string) $request->input('search', ''));
 
             if ($search !== '') {
@@ -74,47 +71,35 @@ class BookController extends Controller
                 $query->where('type', $type);
             }
 
-            // 每个 Library Books 页面最多显示五本书
+            // 5 books per page
             $books = $query->latest()->paginate(5)->withQueryString();
 
-    
-            // 2. Consume Borrow & Return REST JSON API
+            $bookIds = $books->getCollection()->pluck('id')->all();
 
-            try {
-                // 模拟外部 HTTP 客户端创建一个发送到 API 的请求
-                $apiRequest = \Illuminate\Http\Request::create('/api/v1/borrowings/active-counts', 'GET');
-                
-                // 让 Laravel 路由直接处理这个请求，并拿回纯 JSON 响应
-                $response = \Illuminate\Support\Facades\Route::dispatch($apiRequest);
+            $activeCounts = Borrowing::query()
+                ->whereNull('returned_at')
+                ->whereIn('book_id', $bookIds)
+                ->selectRaw('book_id, count(*) as active_count')
+                ->groupBy('book_id')
+                ->pluck('active_count', 'book_id');
 
-                // 检查 API 是否成功返回 (HTTP 200 OK)
-                if ($response->getStatusCode() === 200) {
-                    // 解析 JSON 字符串
-                    $responseData = json_decode($response->getContent(), true);
-                    $activeCounts = $responseData['data'] ?? [];
+            foreach ($books as $book) {
+                $book->active_borrowings_count = (int) (
+                    $activeCounts[$book->id] ?? 0
+                );
 
-                    // 将获取到的借出数量映射到每一本书的属性上
-                    foreach ($books as $book) {
-                        $book->active_borrowings_count = $activeCounts[$book->id] ?? 0;
-                    }
-                } else {
-                    // API 失败降级处理
-                    foreach ($books as $book) { $book->active_borrowings_count = 0; }
-                }
-            } catch (\Exception $apiException) {
-                \Illuminate\Support\Facades\Log::error('Failed to consume borrowing JSON API: ' . $apiException->getMessage());
-                foreach ($books as $book) { $book->active_borrowings_count = 0; }
+                $book->availability_unavailable = false;
             }
 
-            // Web Service API 
-            if ($request->wantsJson()) {
+            // Web Service API
+            if ($request->is('api/*') || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
                     'data' => $books,
                 ], Response::HTTP_OK);
             }
 
-            // MVC View 
+            // MVC View
             return view('books.index', compact('books'));
 
         } catch (Throwable $e) {
@@ -125,7 +110,7 @@ class BookController extends Controller
                 'user_id' => $request->user()?->id,
             ]);
 
-            if ($request->wantsJson()) {
+            if ($request->is('api/*') || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Internal server error. Unable to fetch books.',
@@ -135,14 +120,14 @@ class BookController extends Controller
             return back()->with('error', 'Unable to retrieve books list at the moment.');
         }
     }
-    
-    //web mvc
+
+    // web mvc
     public function create(): View
     {
         return view('books.create');
     }
 
-    //Factory Method Pattern
+    // Factory Method Pattern
 
     public function store(StoreBookRequest $request): JsonResponse|RedirectResponse
     {
@@ -150,13 +135,12 @@ class BookController extends Controller
 
         DB::beginTransaction();
         try {
-            
+
             $factory = match ($validated['type']) {
                 'physical' => new PhysicalBookFactory,
                 'ebook' => new DigitalBookFactory,
             };
 
-           
             $book = $factory->registerBook(
                 $validated,
                 $request->file('cover_image'),
@@ -165,7 +149,6 @@ class BookController extends Controller
 
             DB::commit();
 
-         
             Log::info('Book created successfully.', [
                 'event' => 'BOOK_CREATION_SUCCESS',
                 'book_id' => $book->id,
@@ -191,7 +174,6 @@ class BookController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-        
             Log::error('Book creation failed.', [
                 'event' => 'BOOK_CREATION_FAILED',
                 'isbn' => $validated['isbn'] ?? 'N/A',
@@ -212,7 +194,6 @@ class BookController extends Controller
         }
     }
 
-   
     public function show(Request $request, Book $book): View|JsonResponse
     {
         try {
@@ -244,13 +225,11 @@ class BookController extends Controller
         }
     }
 
-
     public function edit(Book $book): View
     {
         return view('books.edit', compact('book'));
     }
 
-   
     public function update(Request $request, Book $book): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
@@ -338,21 +317,27 @@ class BookController extends Controller
      */
     public function destroy(Request $request, Book $book): JsonResponse|RedirectResponse
     {
-        // =========================================================================
-        // 1. Consume REST JSON API (跨模块 API 检查活跃状态)
-        // =========================================================================
         $hasActiveBorrowings = false;
         try {
-            $apiRequest = \Illuminate\Http\Request::create('/api/v1/borrowings/active-counts', 'GET');
-            $response = \Illuminate\Support\Facades\Route::dispatch($apiRequest);
-            
-            if ($response->getStatusCode() === 200) {
-                $responseData = json_decode($response->getContent(), true);
-                // 只要大于 0，说明目前还有人没还书
-                $hasActiveBorrowings = (($responseData['data'][$book->id] ?? 0) > 0);
+            $activeCounts = $this->borrowReturnApi->activeBorrowingCounts([$book->id]);
+            $hasActiveBorrowings = (int) ($activeCounts[$book->id] ?? 0) > 0;
+        } catch (BorrowReturnApiException $apiException) {
+            Log::warning('Borrow & Return API request failed before deletion.', [
+                'event' => 'BORROW_RETURN_API_FAILURE',
+                'book_id' => $book->id,
+                'error_message' => $apiException->getMessage(),
+            ]);
+
+            $message = 'Borrowing availability is temporarily unavailable. Please try again later.';
+
+            if ($request->is('api/*') || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                ], Response::HTTP_SERVICE_UNAVAILABLE);
             }
-        } catch (\Exception $apiException) {
-            \Illuminate\Support\Facades\Log::error('API Error: ' . $apiException->getMessage());
+
+            return back()->with('error', $message);
         }
 
         // 仅仅当图书 **正在被借出** 时才拦截删除
@@ -362,6 +347,7 @@ class BookController extends Controller
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $message], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
+
             return back()->with('error', $message);
         }
 
@@ -370,13 +356,12 @@ class BookController extends Controller
         // =========================================================================
         DB::beginTransaction();
         try {
-            // 【关键修改】在删除书本之前，先清除数据库里关联的历史借阅和预约记录，防止触发外键约束报错！
+
             $book->borrowings()->delete();
             if (method_exists($book, 'reservations')) {
                 $book->reservations()->delete();
             }
 
-            // 安全删除已上传的关联物理文件
             if ($book->cover_image_path && Storage::disk('public')->exists($book->cover_image_path)) {
                 Storage::disk('public')->delete($book->cover_image_path);
             }
@@ -385,7 +370,6 @@ class BookController extends Controller
                 Storage::disk('local')->delete($book->file_path);
             }
 
-            // 最后删除书本本身
             $book->delete();
 
             DB::commit();
@@ -402,15 +386,12 @@ class BookController extends Controller
 
             return redirect()->route('books.index')->with('success', 'Book deleted successfully.');
 
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             DB::rollBack();
 
-            Log::error('Book deletion failed: ' . $e->getMessage());
+            Log::error('Book deletion failed: '.$e->getMessage());
 
-            return back()->with('error', 'Failed to delete book: ' . $e->getMessage());
+            return back()->with('error', 'Failed to delete book: '.$e->getMessage());
         }
     }
-
-    
-
 }
