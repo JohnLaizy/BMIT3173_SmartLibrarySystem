@@ -7,6 +7,11 @@ use App\Models\User;
 
 class UserAccountService
 {
+    public function __construct(
+        private PaymentInformationService $paymentInformationService
+    ) {
+    }
+
     public function update(
         User $user,
         array $data,
@@ -28,24 +33,32 @@ class UserAccountService
 
     public function syncAccountStatus(User $user): void
     {
-        // Librarian accounts are not controlled by overdue borrowing status.
+        // Librarian accounts are not controlled
+        // by overdue borrowing/payment status.
         if (! $user->isStudent()) {
             return;
         }
 
-        $hasUnresolvedOverdue = Borrowing::query()
+        // Student still has an overdue book
+        // that has not yet been resolved.
+        $hasOverdueBorrowing = Borrowing::query()
             ->where('user_id', $user->id)
-            ->unresolvedOverdue()
+            ->where('status', Borrowing::STATUS_OVERDUE)
             ->exists();
 
-        $newStatus = $hasUnresolvedOverdue
-            ? User::STATUS_INACTIVE
-            : User::STATUS_ACTIVE;
+        // Student has an unpaid or pending payment.
+        $hasOutstandingPayment =
+            $this->paymentInformationService
+                ->hasOutstandingPayment($user->id);
+
+        $newStatus =
+            $hasOverdueBorrowing || $hasOutstandingPayment
+                ? User::STATUS_INACTIVE
+                : User::STATUS_ACTIVE;
 
         if ($user->account_status !== $newStatus) {
             $user->account_status = $newStatus;
             $user->save();
         }
     }
-
 }

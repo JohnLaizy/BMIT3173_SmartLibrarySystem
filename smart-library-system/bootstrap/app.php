@@ -14,19 +14,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
 
-   ->withMiddleware(function (Middleware $middleware): void {
-    $middleware->trustProxies(at: '*');
+    ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
 
-    $middleware->web(append: [
-        RestrictInactiveUserActions::class,
-    ]);
-})
+        $middleware->web(append: [
+            RestrictInactiveUserActions::class,
+        ]);
 
-->withMiddleware(function ($middleware): void {
-    $middleware->alias([
-        'manage-books' => \App\Http\Middleware\EnsureCanManageBooks::class,
-    ]);
-})
+        $middleware->alias([
+            'manage-books' =>
+                \App\Http\Middleware\EnsureCanManageBooks::class,
+        ]);
+    })
 
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
@@ -35,4 +34,5 @@ return Application::configure(basePath: dirname(__DIR__))
                 || $request->expectsJson(),
         );
     })
+
     ->create();

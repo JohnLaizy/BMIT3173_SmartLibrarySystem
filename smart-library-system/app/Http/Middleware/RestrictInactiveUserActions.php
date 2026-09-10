@@ -12,7 +12,7 @@ class RestrictInactiveUserActions
     {
         $user = $request->user();
 
-        // Guests, active users and librarians continue normally.
+        // Guests, active users, and librarians can continue normally.
         if (
             ! $user ||
             $user->isActive() ||
@@ -21,6 +21,7 @@ class RestrictInactiveUserActions
             return $next($request);
         }
 
+        // Routes that inactive students are not allowed to access.
         $restrictedRoutes = [
             'borrowings.store',
             'book-reservations.store',

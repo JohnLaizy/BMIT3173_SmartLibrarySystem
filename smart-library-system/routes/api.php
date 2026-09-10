@@ -8,6 +8,7 @@ use App\Http\Controllers\RoomReservationApiController;
 use App\Http\Controllers\BorrowingController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PaymentInformationApiController;
 
 
 
@@ -44,6 +45,21 @@ Route::get(
 */
 
 Route::prefix('v1')->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Payment Information API
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/payments/users/{user}/status',
+        [PaymentInformationApiController::class, 'show']
+    )->name('api.payments.users.status');
+
+
+
+
 
     /*
     |--------------------------------------------------------------------------
