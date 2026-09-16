@@ -143,11 +143,28 @@ class BorrowingController extends Controller
 
         return $this->performAction(
             $request,
+
             fn () => $service->returnCopy(
                 $user,
                 $borrowing
             ),
-            'Book returned successfully.'
+
+            function (Borrowing $returnedBorrowing): string {
+                if (
+                    $returnedBorrowing->status ===
+                    Borrowing::STATUS_FEE_UNPAID
+                ) {
+                    $fee = number_format(
+                        $returnedBorrowing->overdue_fee_cents / 100,
+                        2
+                    );
+
+                    return "Book returned. This borrowing was overdue. "
+                        ."An overdue fee of RM {$fee} is now due.";
+                }
+
+                return 'Book returned successfully.';
+            }
         );
     }
 
@@ -232,56 +249,60 @@ class BorrowingController extends Controller
         return $user;
     }
 
-    private function performAction(
-        Request $request,
-        Closure $operation,
-        string $successMessage
-    ): RedirectResponse {
-        try {
-            $operation();
+private function performAction(
+    Request $request,
+    Closure $operation,
+    string|Closure $successMessage
+): RedirectResponse {
+    try {
+        $result = $operation();
 
-            return back()->with(
-                'success',
-                $successMessage
-            );
-        } catch (
-            BorrowingRuleViolation $exception
-        ) {
-            Log::warning(
-                'Borrowing request rejected by a business rule.',
-                [
-                    'user_id' => $request->user()
-                        ?->getAuthIdentifier(),
+        $message = $successMessage instanceof Closure
+            ? $successMessage($result)
+            : $successMessage;
 
-                    'reason' => $exception->getMessage(),
-                ]
-            );
+        return back()->with(
+            'success',
+            $message
+        );
+    } catch (
+        BorrowingRuleViolation $exception
+    ) {
+        Log::warning(
+            'Borrowing request rejected by a business rule.',
+            [
+                'user_id' => $request->user()
+                    ?->getAuthIdentifier(),
 
-            return back()->with(
-                'error',
-                $exception->getMessage()
-            );
-        } catch (Throwable $exception) {
-            $reference = (string) Str::uuid();
+                'reason' => $exception->getMessage(),
+            ]
+        );
 
-            Log::error(
-                'Unexpected borrowing operation failure.',
-                [
-                    'reference' => $reference,
+        return back()->with(
+            'error',
+            $exception->getMessage()
+        );
+    } catch (Throwable $exception) {
+        $reference = (string) Str::uuid();
 
-                    'user_id' => $request->user()
-                        ?->getAuthIdentifier(),
+        Log::error(
+            'Unexpected borrowing operation failure.',
+            [
+                'reference' => $reference,
 
-                    'exception' => $exception,
-                ]
-            );
+                'user_id' => $request->user()
+                    ?->getAuthIdentifier(),
 
-            return back()->with(
-                'error',
-                "Unable to process the request. Reference: {$reference}"
-            );
-        }
+                'exception' => $exception,
+            ]
+        );
+
+        return back()->with(
+            'error',
+            "Unable to process the request. Reference: {$reference}"
+        );
     }
+}
 
     public function updateCopyQuantity(
         Request $request,

@@ -49,11 +49,12 @@
             "@php artisan key:generate",
             "@php artisan migrate --force",
             "npm install",
-            "npm run build"
+            "npm run build",
+            "composer run dev"
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently --kill-others-on-fail -n web,borrow-return,vite \"php artisan serve --host=127.0.0.1 --port=8000\" \"php artisan serve --host=127.0.0.1 --port=8001\" \"npm run dev\""
+            "npx concurrently --kill-others-on-fail -n web,borrow-return,vite \"php artisan serve --host=127.0.0.1 --port=8000\" \"php artisan serve --host=127.0.0.1 --port=8001\" \"php artisan schedule:work\" \"npm run dev\""
         ],
         "lint": [
             "pint --parallel"
