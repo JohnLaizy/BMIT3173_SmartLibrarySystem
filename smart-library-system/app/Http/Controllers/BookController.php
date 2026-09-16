@@ -18,7 +18,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
-use App\Models\Borrowing;
 
 class BookController extends Controller
 {
@@ -77,35 +76,7 @@ class BookController extends Controller
             // 5 books per page
             $books = $query->latest()->paginate(5)->withQueryString();
 
-            $bookIds = $books->getCollection()->pluck('id')->all();
-
-           try {
-    $activeCounts =
-        $this->borrowReturnApi
-            ->activeBorrowingCounts($bookIds);
-
-    $availabilityUnavailable = false;
-
-} catch (BorrowReturnApiException $exception) {
-    Log::warning(
-        'Borrow & Return availability could not be retrieved.',
-        [
-            'error_message' => $exception->getMessage(),
-        ]
-    );
-
-    $activeCounts = [];
-    $availabilityUnavailable = true;
-}
-
-foreach ($books as $book) {
-    $book->active_borrowings_count = (int) (
-        $activeCounts[$book->id] ?? 0
-    );
-
-    $book->availability_unavailable =
-        $availabilityUnavailable;
-}
+            $this->attachLiveAvailability($books->getCollection());
 
             // Web Service API
             if ($request->is('api/*') || $request->wantsJson()) {
@@ -213,6 +184,8 @@ foreach ($books as $book) {
     public function show(Request $request, Book $book): View|JsonResponse
     {
         try {
+            $this->attachLiveAvailability(collect([$book]));
+
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => true,
@@ -238,6 +211,45 @@ foreach ($books as $book) {
             }
 
             return redirect()->route('books.index')->with('error', 'Error loading book details.');
+        }
+    }
+
+    /**
+     * Attach presentation/API availability obtained from the Borrow & Return API.
+     *
+     * This deliberately does not persist `available_copies`: active borrowing
+     * counts belong to the Borrow & Return module and are live integration data.
+     *
+     * @param \Illuminate\Support\Collection<int, Book> $books
+     */
+    private function attachLiveAvailability(\Illuminate\Support\Collection $books): void
+    {
+        $bookIds = $books->pluck('id')->all();
+
+        try {
+            $activeCounts = $this->borrowReturnApi->activeBorrowingCounts($bookIds);
+            $availabilityServiceUnavailable = false;
+        } catch (BorrowReturnApiException $exception) {
+            Log::warning('Borrow & Return availability could not be retrieved.', [
+                'error_message' => $exception->getMessage(),
+            ]);
+
+            $activeCounts = [];
+            $availabilityServiceUnavailable = true;
+        }
+
+        foreach ($books as $book) {
+            $borrowedCopies = (int) ($activeCounts[$book->id] ?? 0);
+
+            $book->setAttribute('borrowed_copies', $borrowedCopies);
+            $book->setAttribute('active_borrowings_count', $borrowedCopies);
+            $book->setAttribute(
+                'available_copies',
+                $book->isPhysical()
+                    ? max((int) $book->total_copies - $borrowedCopies, 0)
+                    : null
+            );
+            $book->setAttribute('availability_service_unavailable', $availabilityServiceUnavailable);
         }
     }
 

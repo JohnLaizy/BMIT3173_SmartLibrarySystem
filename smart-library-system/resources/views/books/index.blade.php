@@ -496,20 +496,14 @@
 
                                {{-- Availability --}}
                                 <td class="px-6 py-5">
-                                    @if ($book->availability_unavailable ?? false)
+                                    @if ($book->availability_service_unavailable ?? false)
                                         <span class="font-semibold text-amber-700 dark:text-amber-300">
-                                            Unavailable
+                                            Availability temporarily unavailable
                                         </span>
                                     @elseif ($book->type === 'physical')
-                                        @php
-                                            // 核心逻辑：利用从 JSON API 消费过来的 active_borrowings_count 计算可用库存
-                                            $borrowed = $book->active_borrowings_count ?? 0;
-                                            $available = $book->total_copies - $borrowed;
-                                        @endphp
-
-                                        @if ($available > 0)
+                                        @if ($book->available_copies > 0)
                                             <span class="font-semibold text-emerald-700 dark:text-emerald-300">
-                                                {{ $available }}
+                                                {{ $book->available_copies }}
                                             </span>
                                         @else
                                             <span class="font-semibold text-red-700 dark:text-red-300">
@@ -522,9 +516,9 @@
                                         </span>
 
                                         {{-- 明确展示“已被借出”的数量，向老师证明你成功 Consume 了 JSON API 数据 --}}
-                                        @if ($borrowed > 0)
+                                        @if ($book->borrowed_copies > 0)
                                             <div class="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                                                ({{ $borrowed }} currently borrowed)
+                                                ({{ $book->borrowed_copies }} currently borrowed)
                                             </div>
                                         @endif
 

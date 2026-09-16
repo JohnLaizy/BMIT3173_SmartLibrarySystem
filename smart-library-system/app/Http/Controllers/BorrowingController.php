@@ -584,9 +584,17 @@ class BorrowingController extends Controller
             ->groupBy('book_id')
             ->pluck('active_count', 'book_id');
 
+        // The consumer requests a known catalogue page. Include zero-count
+        // books explicitly so its response contract is deterministic.
+        if ($bookIdsWereRequested) {
+            $counts = $bookIds
+                ->mapWithKeys(fn (int $bookId): array => [$bookId => 0])
+                ->replace($counts);
+        }
+
         return response()->json([
             'success' => true,
-            'data' => $counts,
+            'data' => $counts->all(),
         ]);
     }
 }

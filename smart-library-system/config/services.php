@@ -36,7 +36,10 @@ return [
     ],
 
     'borrow_return' => [
-        'url' => env('BORROW_RETURN_API_URL', env('APP_URL').'/api/v1'),
+        // The local Borrow & Return provider runs on its own listener. This
+        // prevents the single-process PHP development server from deadlocking
+        // when Book Management consumes its REST endpoint.
+        'url' => env('BORROW_RETURN_API_URL', 'http://127.0.0.1:8001/api/v1'),
         'timeout' => env('BORROW_RETURN_API_TIMEOUT', 3),
     ],
 
